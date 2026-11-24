@@ -157,6 +157,10 @@ export class SolarisLily extends Plant {
   }
 
   updateState(dt) {
+    if (this.isBloomed) {
+      this.bloomCharge = 1.0;
+      return;
+    }
     if (!this.isShaded) {
       // In direct sunlight: bloom increases
       this.bloomCharge = Math.min(1.0, this.bloomCharge + BALANCE.lilyBloomRate * dt);
@@ -165,16 +169,8 @@ export class SolarisLily extends Plant {
         this.isBloomed = true;
       }
     } else {
-      // In shadow: dormant, slowly decays if not fully bloomed
-      if (!this.isBloomed) {
-        this.bloomCharge = Math.max(0.0, this.bloomCharge - BALANCE.lilyDecayRate * dt);
-        if (this.bloomCharge <= 0.2) {
-          this.hasAwardedBloom = false;
-        }
-        if (this.bloomCharge <= 0.02) {
-          this.isDead = true;
-        }
-      }
+      // In shade: dormant, bloom progress pauses (no decay)
+      // no-op
     }
   }
 
@@ -248,26 +244,25 @@ export class GhostFern extends Plant {
   }
 
   updateState(dt) {
+    if (this.isBloomed) {
+      this.bloomCharge = 1.0;
+      return;
+    }
     const watered = this.isWatered();
     if (this.isShaded) {
       // In shade: Thriving and blooming!
       this.bloomCharge = Math.min(1.0, this.bloomCharge + BALANCE.fernBloomRate * dt);
       if (this.bloomCharge >= 1.0) {
+        this.bloomCharge = 1.0;
         this.isBloomed = true;
       }
       // Scorch stress soothes and recovers
       this.scorchStress = Math.max(0, this.scorchStress - (watered ? BALANCE.fernRecoverRate * 1.8 : BALANCE.fernRecoverRate) * dt);
     } else {
-      // In sunlight: Scorching and losing bloom charge!
+      // In sunlight: Scorching
       const scorch = watered ? BALANCE.fernScorchRate * 0.5 : BALANCE.fernScorchRate;
       this.scorchStress = Math.min(1.0, this.scorchStress + scorch * dt);
       this.bloomCharge = Math.max(0.0, this.bloomCharge - BALANCE.fernSunDecayRate * dt);
-      if (this.bloomCharge < 1.0) {
-        this.isBloomed = false;
-      }
-      if (this.bloomCharge <= 0.2) {
-        this.hasAwardedBloom = false;
-      }
     }
     if (this.scorchStress >= 1.0) this.isDead = true;
   }
@@ -351,6 +346,10 @@ export class DappledOrchid extends Plant {
   }
 
   updateState(dt) {
+    if (this.isBloomed) {
+      this.bloomCharge = 1.0;
+      return;
+    }
     if (this.prevShaded === null) this.prevShaded = this.isShaded;
     this.timeSinceChange += dt;
 
@@ -371,11 +370,8 @@ export class DappledOrchid extends Plant {
     }
 
     if (this.bloomCharge >= 1.0) {
+      this.bloomCharge = 1.0;
       this.isBloomed = true;
-    }
-    if (this.isBloomed && this.bloomCharge < 0.6) {
-      this.isBloomed = false;
-      this.hasAwardedBloom = false;
     }
   }
 
@@ -418,6 +414,10 @@ export class VelvetPuffball extends Plant {
 
   updateState(dt) {
     const watered = this.isWatered();
+    if (this.isBloomed) {
+      this.bloomCharge = 1.0;
+      return;
+    }
     if (this.isShaded) {
       this.bloomCharge = Math.min(1.0, this.bloomCharge + 0.12 * dt);
       this.scorchStress = Math.max(0, this.scorchStress - (watered ? 0.35 : 0.2) * dt);
@@ -428,11 +428,12 @@ export class VelvetPuffball extends Plant {
         this.scorchStress = Math.min(1.0, this.scorchStress + 0.12 * dt);
         this.bloomCharge = Math.max(0, this.bloomCharge - 0.04 * dt);
       }
-      if (this.bloomCharge < 1.0) this.isBloomed = false;
     }
-    if (this.bloomCharge >= 1.0) this.isBloomed = true;
+    if (this.bloomCharge >= 1.0) {
+      this.bloomCharge = 1.0;
+      this.isBloomed = true;
+    }
     if (this.scorchStress >= 1.0) this.isDead = true;
-    if (this.bloomCharge <= 0.15 && this.scorchStress > 0.8) this.hasAwardedBloom = false;
   }
 
   drawPlant() {
@@ -463,17 +464,20 @@ export class HelioCactus extends Plant {
   }
 
   updateState(dt) {
+    if (this.isBloomed) {
+      this.bloomCharge = 1.0;
+      return;
+    }
     const watered = this.isWatered();
     if (!this.isShaded) {
       this.bloomCharge = Math.min(1.0, this.bloomCharge + (watered ? 0.1 : 0.16) * dt);
-      if (this.bloomCharge >= 1.0) this.isBloomed = true;
-    } else {
-      if (!this.isBloomed) {
-        this.bloomCharge = Math.max(0.0, this.bloomCharge - 0.04 * dt);
-        if (this.bloomCharge <= 0.02) this.isDead = true;
+      if (this.bloomCharge >= 1.0) {
+        this.bloomCharge = 1.0;
+        this.isBloomed = true;
       }
+    } else {
+      // In shade: dormant, bloom progress pauses
     }
-    if (this.bloomCharge <= 0.1) this.hasAwardedBloom = false;
   }
 
   drawPlant() {

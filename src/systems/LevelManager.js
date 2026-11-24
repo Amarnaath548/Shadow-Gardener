@@ -49,7 +49,7 @@ export const LEVELS = [
     parTime: 120
   },
   {
-    id: 3, name: 'Rotating Shadows', chapter: 2,
+    id: 3, name: 'Rotating Shadows', chapter: 3,
     desc: 'Rotate the obelisks to redirect shadows as the sun moves.',
     plants: [
       { type: 'lily', ox: 140, oy: 50 },
@@ -90,7 +90,7 @@ export const LEVELS = [
       { type: 'obelisk', ox: 0, oy: -60, scale: 1.2, angle: 0, rotatable: true }
     ],
     goal: { type: 'bloomAll' },
-    tools: ['sun', 'move', 'rotate'],
+    tools: ['sun', 'rotate'],
     parTime: 90
   },
   {
@@ -108,7 +108,7 @@ export const LEVELS = [
       { type: 'obelisk', ox: 60, oy: -100, scale: 1.0, angle: 0, rotatable: true }
     ],
     goal: { type: 'sandbox' },
-    tools: ['sun', 'water', 'prune', 'move', 'rotate', 'autoOrbit'],
+    tools: ['sun', 'water', 'prune', 'rotate', 'autoOrbit'],
     parTime: 0
   },
   {
@@ -125,7 +125,7 @@ export const LEVELS = [
       { type: 'obelisk', ox: 60, oy: -100, scale: 1.0, angle: 0, rotatable: true }
     ],
     goal: { type: 'bloomAll' },
-    tools: ['sun', 'water', 'prune', 'move', 'rotate', 'autoOrbit'],
+    tools: ['sun', 'water', 'prune', 'rotate', 'autoOrbit'],
     parTime: 150
   }
 ];

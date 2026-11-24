@@ -1,4 +1,5 @@
 import { PALETTE } from '../constants/Palette.js';
+import { getSunElevation } from '../entities/SunDial.js';
 
 /**
  * Robust 2D shadow projection system.
@@ -10,6 +11,7 @@ export class ShadowSystem {
     this.shadowGraphics = scene.add.graphics();
     this.casters = [];
     this.shadowPolygons = []; // Array of polygon vertex arrays for hit testing
+    this.shadowOwners = []; // Parallel array of owning casters
     this.shadowLength = 650;
   }
 
@@ -26,6 +28,7 @@ export class ShadowSystem {
    */
   update(sunX, sunY) {
     this.shadowPolygons = [];
+    this.shadowOwners = [];
 
     for (const caster of this.casters) {
       const vertices = caster.getFootprintVertices();
@@ -34,6 +37,7 @@ export class ShadowSystem {
       const poly = this.calculateConvexShadowPolygon(vertices, sunX, sunY, caster);
       if (poly && poly.length >= 3) {
         this.shadowPolygons.push(poly);
+        this.shadowOwners.push(caster);
       }
     }
 
@@ -102,7 +106,7 @@ export class ShadowSystem {
     const centerX = this.scene && this.scene.centerX ? this.scene.centerX : 400;
     const centerY = this.scene && this.scene.centerY ? this.scene.centerY : 300;
     const sunAngle = Math.atan2(sunY - centerY, sunX - centerX);
-    const sunElevation = Math.max(0.45, Math.abs(Math.cos(sunAngle)));
+    const sunElevation = getSunElevation(sunAngle);
     const len = Math.min(320, Math.max(90, (casterHeight * 1.35 * lengthMult) / sunElevation));
 
     // 3. Determine front-facing vs back-facing edges from sun viewpoint
@@ -204,16 +208,18 @@ export class ShadowSystem {
    * Tests point-in-polygon against all active shadow hulls,
    * plus a direct raycast segment intersection test with casters.
    */
-  isPointInShadow(x, y, sunX, sunY) {
-    // 1. Point inside any shadow polygon
-    for (const poly of this.shadowPolygons) {
-      if (this.pointInPolygon(x, y, poly)) {
+  isPointInShadow(x, y, sunX, sunY, ignoreCaster = null) {
+    // 1. Point inside any shadow polygon (skip the one owned by ignoreCaster)
+    for (let i = 0; i < this.shadowPolygons.length; i++) {
+      if (ignoreCaster && this.shadowOwners[i] === ignoreCaster) continue;
+      if (this.pointInPolygon(x, y, this.shadowPolygons[i])) {
         return true;
       }
     }
 
     // 2. Direct raycast check from Sun to Point (occlusion check)
     for (const caster of this.casters) {
+      if (ignoreCaster && caster === ignoreCaster) continue;
       const vertices = caster.getFootprintVertices();
       if (!vertices) continue;
       if (this.lineIntersectsPolygon(sunX, sunY, x, y, vertices)) {

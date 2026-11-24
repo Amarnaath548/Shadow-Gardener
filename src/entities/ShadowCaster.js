@@ -71,6 +71,21 @@ export class BasaltObelisk extends ShadowCaster {
     const y = this.y;
     const s = this.scale;
 
+    if (this.rotatable) {
+      // round brass turntable tile under plinth
+      g.fillStyle(PALETTE.brassDark, 0.9);
+      g.fillCircle(x, y + 4 * s, 30 * s);
+      g.lineStyle(2, PALETTE.brassHighlight, 0.8);
+      g.strokeCircle(x, y + 4 * s, 30 * s);
+      for (let t = 0; t < 12; t++) {
+        const a = this.rotation + (t / 12) * Math.PI * 2;
+        const r1 = 22 * s;
+        const r2 = 28 * s;
+        g.lineStyle(1.2, PALETTE.brassMid, 0.9);
+        g.lineBetween(x + Math.cos(a) * r1, y + 4 * s + Math.sin(a) * r1, x + Math.cos(a) * r2, y + 4 * s + Math.sin(a) * r2);
+      }
+    }
+
     // Pedestal base (stone plinth)
     const pw = 34 * s;
     const ph = 24 * s;
@@ -171,8 +186,10 @@ export class WhisperingBanyan extends ShadowCaster {
     super(scene, x, y);
     this.baseRadius = radius;
     this.radius = radius;
-    this.minRadius = 30;
-    this.maxRadius = 90;
+    this.growth = radius;
+    this.height = this.growth;
+    this.minGrowth = 30;
+    this.maxGrowth = 90;
     this.shadowLengthMultiplier = 1.35;
 
     this.regenerateFootprint();
@@ -194,13 +211,13 @@ export class WhisperingBanyan extends ShadowCaster {
   }
 
   water() {
-    this.radius = Math.min(this.maxRadius, this.radius + 6);
-    this.regenerateFootprint();
+    this.growth = Math.min(this.maxGrowth, this.growth + 6);
+    this.height = this.growth;
   }
 
   prune() {
-    this.radius = Math.max(this.minRadius, this.radius - 8);
-    this.regenerateFootprint();
+    this.growth = Math.max(this.minGrowth, this.growth - 8);
+    this.height = this.growth;
   }
 
   getFootprintVertices() {
@@ -213,64 +230,61 @@ export class WhisperingBanyan extends ShadowCaster {
 
     const x = this.x;
     const y = this.y;
+    const sc = this.growth / 55;
 
     // Ambient ground shadow under trunk
     g.fillStyle(0x181512, 0.5);
-    g.fillEllipse(x, y + 16, 68, 38);
+    g.fillEllipse(x, y + 16 * sc, 68 * sc, 38 * sc);
 
     // Thick twisted Banyan trunk & aerial roots
     g.fillStyle(PALETTE.treeTrunkDark, 1.0);
     g.beginPath();
-    g.moveTo(x - 22, y + 22);
-    g.lineTo(x - 14, y - 10);
-    g.lineTo(x + 14, y - 10);
-    g.lineTo(x + 22, y + 22);
-    g.lineTo(x + 8, y + 18);
-    g.lineTo(x, y + 12);
-    g.lineTo(x - 8, y + 18);
+    g.moveTo(x - 22 * sc, y + 22 * sc);
+    g.lineTo(x - 14 * sc, y - 10 * sc);
+    g.lineTo(x + 14 * sc, y - 10 * sc);
+    g.lineTo(x + 22 * sc, y + 22 * sc);
+    g.lineTo(x + 8 * sc, y + 18 * sc);
+    g.lineTo(x, y + 12 * sc);
+    g.lineTo(x - 8 * sc, y + 18 * sc);
     g.closePath();
     g.fillPath();
 
     // Trunk highlights
     g.fillStyle(PALETTE.treeTrunk, 1.0);
-    g.fillRect(x - 10, y - 6, 20, 22);
+    g.fillRect(x - 10 * sc, y - 6 * sc, 20 * sc, 22 * sc);
 
     // Hanging aerial roots (vines)
     g.lineStyle(2, PALETTE.treeVine, 0.9);
-    g.lineBetween(x - 28, y - 4, x - 30, y + 18);
-    g.lineBetween(x - 18, y - 2, x - 19, y + 22);
-    g.lineBetween(x + 18, y - 2, x + 19, y + 20);
-    g.lineBetween(x + 28, y - 4, x + 30, y + 16);
+    g.lineBetween(x - 28 * sc, y - 4 * sc, x - 30 * sc, y + 18 * sc);
+    g.lineBetween(x - 18 * sc, y - 2 * sc, x - 19 * sc, y + 22 * sc);
+    g.lineBetween(x + 18 * sc, y - 2 * sc, x + 19 * sc, y + 20 * sc);
+    g.lineBetween(x + 28 * sc, y - 4 * sc, x + 30 * sc, y + 16 * sc);
 
     // Canopy foliage blobs (gouache layering)
-    // Dark base foliage
     g.fillStyle(PALETTE.treeLeafDark, 1.0);
-    g.fillCircle(x - 28, y - 24, 30);
-    g.fillCircle(x + 28, y - 24, 30);
-    g.fillCircle(x, y - 36, 38);
-    g.fillCircle(x - 16, y - 10, 26);
-    g.fillCircle(x + 16, y - 10, 26);
+    g.fillCircle(x - 28 * sc, y - 24 * sc, 30 * sc);
+    g.fillCircle(x + 28 * sc, y - 24 * sc, 30 * sc);
+    g.fillCircle(x, y - 36 * sc, 38 * sc);
+    g.fillCircle(x - 16 * sc, y - 10 * sc, 26 * sc);
+    g.fillCircle(x + 16 * sc, y - 10 * sc, 26 * sc);
 
-    // Mid green lush leaves
     g.fillStyle(PALETTE.treeLeafMid, 1.0);
-    g.fillCircle(x - 24, y - 28, 25);
-    g.fillCircle(x + 24, y - 28, 25);
-    g.fillCircle(x, y - 38, 32);
-    g.fillCircle(x - 12, y - 14, 22);
-    g.fillCircle(x + 12, y - 14, 22);
+    g.fillCircle(x - 24 * sc, y - 28 * sc, 25 * sc);
+    g.fillCircle(x + 24 * sc, y - 28 * sc, 25 * sc);
+    g.fillCircle(x, y - 38 * sc, 32 * sc);
+    g.fillCircle(x - 12 * sc, y - 14 * sc, 22 * sc);
+    g.fillCircle(x + 12 * sc, y - 14 * sc, 22 * sc);
 
-    // Sunlit foliage highlights based on sun position
-    const lightOffsetX = -Math.cos(sunAngle) * 8;
-    const lightOffsetY = -Math.sin(sunAngle) * 8;
+    const lightOffsetX = -Math.cos(sunAngle) * 8 * sc;
+    const lightOffsetY = -Math.sin(sunAngle) * 8 * sc;
 
     g.fillStyle(PALETTE.treeLeafLight, 0.95);
-    g.fillCircle(x - 20 + lightOffsetX, y - 32 + lightOffsetY, 18);
-    g.fillCircle(x + 20 + lightOffsetX, y - 32 + lightOffsetY, 18);
-    g.fillCircle(x + lightOffsetX, y - 42 + lightOffsetY, 24);
+    g.fillCircle(x - 20 * sc + lightOffsetX, y - 32 * sc + lightOffsetY, 18 * sc);
+    g.fillCircle(x + 20 * sc + lightOffsetX, y - 32 * sc + lightOffsetY, 18 * sc);
+    g.fillCircle(x + lightOffsetX, y - 42 * sc + lightOffsetY, 24 * sc);
 
-    // Top gouache dapples
     g.fillStyle(PALETTE.treeLeafHighlight, 0.85);
-    g.fillCircle(x + lightOffsetX * 1.3, y - 46 + lightOffsetY * 1.3, 14);
-    g.fillCircle(x - 18 + lightOffsetX * 1.2, y - 36 + lightOffsetY * 1.2, 10);
+    g.fillCircle(x + lightOffsetX * 1.3, y - 46 * sc + lightOffsetY * 1.3, 14 * sc);
+    g.fillCircle(x - 18 * sc + lightOffsetX * 1.2, y - 36 * sc + lightOffsetY * 1.2, 10 * sc);
   }
 }

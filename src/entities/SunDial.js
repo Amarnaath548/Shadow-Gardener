@@ -13,7 +13,7 @@ export class SunDial {
     this.radius = radius;
 
     // Angle theta in radians (0 = 3 o'clock / East)
-    this.angle = -Math.PI / 4; // Start at upper-right (~1:30 position, pleasing morning sun)
+    this.angle = -3 * Math.PI / 4; // Morning-ish start
     this.isDragging = false;
     this.isAutoOrbit = false;
     this.autoOrbitSpeed = BALANCE.autoOrbitSpeed;
@@ -271,17 +271,18 @@ export class SunDial {
   }
 
   getTimeString() {
-    // Convert angle to 24hr time mapping naturally with the visual sun orbit:
-    // -PI = 12:00 AM (Midnight), -PI/2 = 6:00 AM (Sunrise)
-    // -PI/4 = 9:00 AM (Morning), 0 = 12:00 PM (Noon), PI/2 = 6:00 PM (Sunset)
-    let norm = (this.angle + Math.PI) / (Math.PI * 2);
-    norm = ((norm % 1) + 1) % 1; // Safely wrap across 360 degrees into [0, 1)
-    const totalMinutes = Math.floor(norm * 24 * 60);
-    const hrs = Math.floor(totalMinutes / 60) % 24;
-    const mins = totalMinutes % 60;
-    const ampm = hrs >= 12 ? 'PM' : 'AM';
-    const displayHrs = hrs % 12 === 0 ? 12 : hrs % 12;
-    const displayMins = mins < 10 ? `0${mins}` : mins;
+    let hrs = (6 + ((this.angle + Math.PI) / (Math.PI * 2)) * 24) % 24;
+    hrs = ((hrs % 24) + 24) % 24;
+    const totalMinutes = Math.floor(hrs * 60);
+    const h = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayHrs = h % 12 === 0 ? 12 : h % 12;
+    const displayMins = m < 10 ? `0${m}` : m;
     return `${displayHrs}:${displayMins} ${ampm}`;
   }
+}
+
+export function getSunElevation(angle) {
+  return Math.max(0.35, (1 - Math.sin(angle)) / 2);
 }

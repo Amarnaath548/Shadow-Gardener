@@ -3,6 +3,7 @@ import { SunDial } from '../entities/SunDial.js';
 import { BasaltObelisk, WhisperingBanyan } from '../entities/ShadowCaster.js';
 import { SolarisLily, GhostFern, DappledOrchid, VelvetPuffball, HelioCactus } from '../entities/Plant.js';
 import { ShadowSystem } from '../systems/ShadowSystem.js';
+import { getSunElevation } from '../entities/SunDial.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { LEVELS, getLevel } from '../systems/LevelManager.js';
@@ -107,6 +108,8 @@ export class GardenScene extends Phaser.Scene {
       if (p.type === 'cactus') {
         const pseudo = {
           x: plant.x, y: plant.y,
+          height: 28,
+          shadowLengthMultiplier: 0.5,
           getFootprintVertices: () => {
             const hw = 6, hh = 6;
             return [
@@ -117,7 +120,6 @@ export class GardenScene extends Phaser.Scene {
             ];
           }
         };
-        // keep reference to update position
         plant._caster = pseudo;
         this.casters.push(pseudo);
         this.shadowSystem.addCaster(pseudo);
@@ -228,6 +230,12 @@ export class GardenScene extends Phaser.Scene {
     // pause button
     this.pauseBtn = this.add.text(width - 60, height - 30, '||', { fontFamily: 'Georgia, serif', fontSize: '18px', color: '#D4AF37' }).setInteractive({ cursor: 'pointer' });
     this.pauseBtn.on('pointerdown', () => this.togglePause());
+
+    const hasMove = (this.level.plants || []).some(p => p.movable);
+    const hasRotate = (this.level.casters || []).some(c => c.rotatable);
+    if (hasMove || hasRotate) {
+      this.add.text(24, height - 170, 'Drag pots to move, click obelisks to rotate', { fontFamily: 'Georgia, serif', fontSize: '11px', color: '#C9BA9E' });
+    }
   }
 
   createToolPanel(width, height) {
@@ -273,9 +281,7 @@ export class GardenScene extends Phaser.Scene {
 
     const toolDefs = [
       { tool: 'water', label: 'Water' },
-      { tool: 'prune', label: 'Prune' },
-      { tool: 'move', label: 'Move (drag pots)' },
-      { tool: 'rotate', label: 'Rotate (click obelisk)' }
+      { tool: 'prune', label: 'Prune' }
     ];
     let xi = 34;
     this.toolButtons = {};
@@ -302,6 +308,13 @@ export class GardenScene extends Phaser.Scene {
         for (const plant of this.plants) {
           if (Phaser.Math.Distance.Between(pointer.x, pointer.y, plant.x, plant.y) < 30) {
             plant.water();
+            this.audio.playWater();
+            return;
+          }
+        }
+        for (const caster of this.casters) {
+          if (caster instanceof WhisperingBanyan && Phaser.Math.Distance.Between(pointer.x, pointer.y, caster.x, caster.y) < 50) {
+            caster.water();
             this.audio.playWater();
             return;
           }
@@ -418,7 +431,8 @@ export class GardenScene extends Phaser.Scene {
     // update movable pseudo caster positions already handled by drag
 
     for (const plant of this.plants) {
-      const isShaded = this.shadowSystem.isPointInShadow(plant.x, plant.y, sun.x, sun.y);
+      const ignore = plant._caster || null;
+      const isShaded = this.shadowSystem.isPointInShadow(plant.x, plant.y, sun.x, sun.y, ignore);
       plant.update(dt, isShaded);
 
       const reward = plant.checkBloomReward();
@@ -449,7 +463,7 @@ export class GardenScene extends Phaser.Scene {
     this.timeText.setText(`Time: ${this.sunDial.getTimeString()}`);
 
     // day/night overlay
-    const elev = Math.max(0.2, Math.abs(Math.cos(sun.angle)));
+    const elev = getSunElevation(sun.angle);
     this.dayNightOverlay.clear();
     const nightAlpha = (1 - elev) * 0.35;
     this.dayNightOverlay.fillStyle(0x0B1026, nightAlpha);
