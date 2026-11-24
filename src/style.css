@@ -1,0 +1,29 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: radial-gradient(circle at center, #2e2a24 0%, #1a1714 100%);
+  color: #f7eedd;
+  font-family: 'Georgia', 'Palatino Linotype', serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+#game-container {
+  position: relative;
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(212, 175, 55, 0.25);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #25221d;
+}
+
+canvas {
+  display: block;
+}
