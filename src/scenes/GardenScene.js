@@ -4,7 +4,7 @@ import { getSunElevation } from '../entities/SunDial.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { LEVELS, getLevel } from '../systems/LevelManager.js';
-import { buildLevel } from '../systems/LevelBuilder.js';
+import { buildLevel, projectOntoSegment } from '../systems/LevelBuilder.js';
 import Phaser from 'phaser';
 
 export class GardenScene extends Phaser.Scene {
@@ -87,14 +87,32 @@ export class GardenScene extends Phaser.Scene {
   }
 
   makeMovable(plant) {
+    if (plant.track && this.gardenGraphics) {
+      const g = this.gardenGraphics;
+      g.lineStyle(4, PALETTE.brassDark, 0.85);
+      g.lineBetween(plant.track.ax, plant.track.ay, plant.track.bx, plant.track.by);
+      g.lineStyle(1.5, PALETTE.brassLight, 0.9);
+      g.lineBetween(plant.track.ax, plant.track.ay, plant.track.bx, plant.track.by);
+      g.fillStyle(PALETTE.brassMid, 1);
+      g.fillCircle(plant.track.ax, plant.track.ay, 4);
+      g.fillCircle(plant.track.bx, plant.track.by, 4);
+    }
     const handle = this.add.circle(plant.x, plant.y, 22, 0xffffff, 0.001);
     handle.setInteractive({ cursor: 'move' });
     this.input.setDraggable(handle);
     handle.on('drag', (pointer, gameObject, dragX, dragY) => {
-      plant.x = dragX;
-      plant.y = dragY;
-      handle.setPosition(dragX, dragY);
-      if (plant._caster) { plant._caster.x = dragX; plant._caster.y = dragY; }
+      let nx = dragX, ny = dragY;
+      if (plant.track) {
+        const pt = projectOntoSegment(dragX, dragY, plant.track.ax, plant.track.ay, plant.track.bx, plant.track.by);
+        nx = pt.x;
+        ny = pt.y;
+      }
+      plant.x = nx;
+      plant.y = ny;
+      handle.setPosition(nx, ny);
+      if (plant._caster) { plant._caster.x = nx; plant._caster.y = ny; }
+      if (plant.drawPlant) plant.drawPlant();
+      if (plant.drawMeter) plant.drawMeter();
     });
     this.movableHandles.push(handle);
   }

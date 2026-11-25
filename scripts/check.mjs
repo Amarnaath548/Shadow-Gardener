@@ -5,6 +5,7 @@ import { SolarisLily, GhostFern, HelioCactus, VelvetPuffball, DappledOrchid } fr
 import { SunDial, getSunElevation } from '../src/entities/SunDial.js';
 import { LEVELS, getLevel } from '../src/systems/LevelManager.js';
 import { Simulator } from '../src/systems/Simulator.js';
+import { projectOntoSegment } from '../src/systems/LevelBuilder.js';
 
 const g = () => new Proxy({}, { get: () => () => {} });
 const scene = { centerX: 512, centerY: 369, settings: {}, add: { graphics: g, circle: g }, input: { on() {}, off() {} } };
@@ -223,6 +224,19 @@ for (let id = 0; id <= 9; id++) {
   const ok = sim.world.levelComplete && !sim.world.levelFailed && !anyDead;
   const detail = ok ? '' : ' ' + sim.world.plants.map(p => `${p.name}(sh=${p.isShaded},bl=${p.bloomCharge.toFixed(2)},dead=${p.isDead})`).join(' ');
   report(`f) level ${id} (${L.name})`, ok, `complete=${sim.world.levelComplete} failed=${sim.world.levelFailed} dead=${anyDead}${detail}`);
+}
+
+// g) Track segment projection unit test
+{
+  const pA = projectOntoSegment(-50, 40, 0, 10, 100, 10);
+  const pB = projectOntoSegment(250, -30, 0, 10, 100, 10);
+  const pMid = projectOntoSegment(42, 10, 0, 10, 100, 10);
+  const pPerp = projectOntoSegment(42, 99, 0, 10, 100, 10);
+  const ok = Math.abs(pA.x - 0) < 1e-6 && Math.abs(pA.y - 10) < 1e-6
+    && Math.abs(pB.x - 100) < 1e-6 && Math.abs(pB.y - 10) < 1e-6
+    && Math.abs(pMid.x - 42) < 1e-6 && Math.abs(pMid.y - 10) < 1e-6
+    && Math.abs(pPerp.x - 42) < 1e-6 && Math.abs(pPerp.y - 10) < 1e-6;
+  report('g) track segment projection', ok, `A=(${pA.x},${pA.y}) B=(${pB.x},${pB.y}) mid=(${pMid.x},${pMid.y})`);
 }
 
 console.log(`\nTOTAL PASS=${pass} FAIL=${fail}`);

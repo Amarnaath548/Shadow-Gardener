@@ -3,6 +3,15 @@ import { SolarisLily, GhostFern, DappledOrchid, VelvetPuffball, HelioCactus } fr
 import { ShadowSystem } from './ShadowSystem.js';
 import { SunDial } from '../entities/SunDial.js';
 
+export function projectOntoSegment(px, py, ax, ay, bx, by) {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const lenSq = abx * abx + aby * aby;
+  if (lenSq <= 1e-8) return { x: ax, y: ay };
+  const t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / lenSq));
+  return { x: ax + t * abx, y: ay + t * aby };
+}
+
 export function buildLevel(scene, level) {
   const cx = scene.centerX;
   const cy = scene.centerY;
@@ -37,6 +46,9 @@ export function buildLevel(scene, level) {
       default: plant = new SolarisLily(scene, x, y); break;
     }
     plant.movable = !!p.movable;
+    plant.track = p.track
+      ? { ax: cx + p.track.ax, ay: cy + p.track.ay, bx: cx + p.track.bx, by: cy + p.track.by }
+      : null;
     plants.push(plant);
 
     if (p.type === 'cactus') {

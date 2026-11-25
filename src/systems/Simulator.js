@@ -1,4 +1,4 @@
-import { buildLevel } from './LevelBuilder.js';
+import { buildLevel, projectOntoSegment } from './LevelBuilder.js';
 
 const noopGraphics = () => new Proxy({}, { get: () => () => {} });
 
@@ -91,11 +91,17 @@ export function rotate(obelisk, delta = Math.PI / 6) {
 }
 
 export function movePlant(plant, x, y) {
-  plant.x = x;
-  plant.y = y;
+  let nx = x, ny = y;
+  if (plant.track) {
+    const pt = projectOntoSegment(x, y, plant.track.ax, plant.track.ay, plant.track.bx, plant.track.by);
+    nx = pt.x;
+    ny = pt.y;
+  }
+  plant.x = nx;
+  plant.y = ny;
   if (plant._caster) {
-    plant._caster.x = x;
-    plant._caster.y = y;
+    plant._caster.x = nx;
+    plant._caster.y = ny;
   }
 }
 
