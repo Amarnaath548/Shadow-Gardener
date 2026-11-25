@@ -39,8 +39,8 @@ export class Plant {
     this.drawMeter();
   }
 
-  water() {
-    this.wateredTimer = 4.0;
+  water(bonusSeconds = 0) {
+    this.wateredTimer = 4.0 + bonusSeconds;
   }
 
   isWatered() {

@@ -1,4 +1,4 @@
-import { PALETTE } from '../src/constants/Palette.js';
+import { PALETTE, BALANCE } from '../src/constants/Palette.js';
 import { ShadowSystem } from '../src/systems/ShadowSystem.js';
 import { BasaltObelisk, WhisperingBanyan } from '../src/entities/ShadowCaster.js';
 import { SolarisLily, GhostFern, HelioCactus, VelvetPuffball, DappledOrchid } from '../src/entities/Plant.js';
@@ -6,6 +6,7 @@ import { SunDial, getSunElevation } from '../src/entities/SunDial.js';
 import { LEVELS, getLevel } from '../src/systems/LevelManager.js';
 import { Simulator } from '../src/systems/Simulator.js';
 import { projectOntoSegment } from '../src/systems/LevelBuilder.js';
+import { SaveSystem } from '../src/systems/SaveSystem.js';
 
 const g = () => new Proxy({}, { get: () => () => {} });
 const scene = { centerX: 512, centerY: 369, settings: {}, add: { graphics: g, circle: g }, input: { on() {}, off() {} } };
@@ -237,6 +238,35 @@ for (let id = 0; id <= 9; id++) {
     && Math.abs(pMid.x - 42) < 1e-6 && Math.abs(pMid.y - 10) < 1e-6
     && Math.abs(pPerp.x - 42) < 1e-6 && Math.abs(pPerp.y - 10) < 1e-6;
   report('g) track segment projection', ok, `A=(${pA.x},${pA.y}) B=(${pB.x},${pB.y}) mid=(${pMid.x},${pMid.y})`);
+}
+
+// h) SaveSystem shop & upgrade unit tests
+{
+  SaveSystem.reset();
+  const defSeeds = SaveSystem.getUnlockedSeeds();
+  const shortFail = SaveSystem.spendPollen(10);
+  const pAfterShort = SaveSystem.getPollen();
+  SaveSystem.addPollen(120);
+  const seedOk = SaveSystem.unlockSeed('puffball', 25);
+  const upgOk = SaveSystem.buyUpgrade('deepRoots', 80);
+  const shortUpg = SaveSystem.buyUpgrade('slowSun', 100);
+  const finalPollen = SaveSystem.getPollen();
+  const ok = defSeeds.includes('lily') && defSeeds.includes('fern')
+    && !shortFail && pAfterShort === 0
+    && seedOk && SaveSystem.hasSeed('puffball')
+    && upgOk && SaveSystem.hasUpgrade('deepRoots')
+    && !shortUpg && !SaveSystem.hasUpgrade('slowSun')
+    && finalPollen === 15 && finalPollen >= 0;
+  SaveSystem.reset();
+  report('h) SaveSystem pollen/seeds/upgrades', ok, `pollen=${finalPollen}`);
+}
+
+// i) Deep Roots bonus water duration
+{
+  const f = new GhostFern(scene, 0, 0);
+  f.water(BALANCE.deepRootsBonusSec);
+  const ok = Math.abs(f.wateredTimer - 6.0) < 1e-6;
+  report('i) Deep Roots +2s water timer', ok, `timer=${f.wateredTimer}`);
 }
 
 console.log(`\nTOTAL PASS=${pass} FAIL=${fail}`);

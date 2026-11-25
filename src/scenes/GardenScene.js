@@ -1,10 +1,10 @@
 import { PALETTE, BALANCE } from '../constants/Palette.js';
-import { BasaltObelisk } from '../entities/ShadowCaster.js';
+import { BasaltObelisk, WhisperingBanyan } from '../entities/ShadowCaster.js';
 import { getSunElevation } from '../entities/SunDial.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { LEVELS, getLevel } from '../systems/LevelManager.js';
-import { buildLevel, projectOntoSegment } from '../systems/LevelBuilder.js';
+import { buildLevel, createPlant, projectOntoSegment } from '../systems/LevelBuilder.js';
 import Phaser from 'phaser';
 
 export class GardenScene extends Phaser.Scene {
@@ -41,11 +41,21 @@ export class GardenScene extends Phaser.Scene {
     this.plants = [];
     this.movableHandles = [];
     this.obeliskHandles = [];
+    this.selectedSeed = null;
+    this.extraPlantsCount = 0;
 
     this.buildLevel();
 
+    if (this.save.upgrades && this.save.upgrades.slowSun) {
+      this.sunDial.autoOrbitSpeed = BALANCE.autoOrbitSpeed * BALANCE.slowSunMultiplier;
+    }
+
     this.createHUD(width, height);
     this.createToolPanel(width, height);
+    if (this.level.goal.type === 'sandbox') {
+      this.createSeedTray(width, height);
+      if (this.input.mouse) this.input.mouse.disableContextMenu();
+    }
     this.createLevelOverlay(width, height);
 
     // day/night overlay
@@ -114,7 +124,9 @@ export class GardenScene extends Phaser.Scene {
       if (plant.drawPlant) plant.drawPlant();
       if (plant.drawMeter) plant.drawMeter();
     });
+    plant._handle = handle;
     this.movableHandles.push(handle);
+    return handle;
   }
 
   makeRotatable(caster) {
@@ -234,14 +246,15 @@ export class GardenScene extends Phaser.Scene {
     }
     this.activeToolText = this.add.text(20, height - 180, 'Active: none', { fontFamily: 'Georgia, serif', fontSize: '11px', color: '#C9BA9E' });
 
-    // click handling for watering/pruning
+    // click handling for watering/pruning/sandbox decorating
     this.input.on('pointerdown', (pointer) => {
       if (this.levelComplete || this.levelFailed) return;
       // water
       if (this.activeTool === 'water') {
+        const waterBonus = (this.save.upgrades && this.save.upgrades.deepRoots) ? BALANCE.deepRootsBonusSec : 0;
         for (const plant of this.plants) {
           if (Phaser.Math.Distance.Between(pointer.x, pointer.y, plant.x, plant.y) < 30) {
-            plant.water();
+            plant.water(waterBonus);
             this.audio.playWater();
             return;
           }
@@ -256,6 +269,15 @@ export class GardenScene extends Phaser.Scene {
       }
       // prune
       if (this.activeTool === 'prune') {
+        if (this.level.goal.type === 'sandbox') {
+          for (const plant of this.plants) {
+            if (plant._isSandboxExtra && Phaser.Math.Distance.Between(pointer.x, pointer.y, plant.x, plant.y) < 28) {
+              this.removeSandboxPlant(plant);
+              this.audio.playPrune();
+              return;
+            }
+          }
+        }
         for (const caster of this.casters) {
           if (caster instanceof WhisperingBanyan && Phaser.Math.Distance.Between(pointer.x, pointer.y, caster.x, caster.y) < 40) {
             caster.prune();
@@ -264,7 +286,103 @@ export class GardenScene extends Phaser.Scene {
           }
         }
       }
+      // sandbox seed placement
+      if (this.level.goal.type === 'sandbox' && this.selectedSeed && !pointer.rightButtonDown()) {
+        if (this.extraPlantsCount >= 8) return;
+        const dist = Phaser.Math.Distance.Between(pointer.x, pointer.y, this.centerX, this.centerY);
+        if (dist <= 250) {
+          const plant = createPlant(this, this.selectedSeed, pointer.x, pointer.y, { movable: true });
+          plant._isSandboxExtra = true;
+          this.plants.push(plant);
+          if (plant._caster) {
+            this.casters.push(plant._caster);
+            this.shadowSystem.addCaster(plant._caster);
+          }
+          const handle = this.makeMovable(plant);
+          handle.on('pointerdown', (p) => {
+            if (p.rightButtonDown()) {
+              this.removeSandboxPlant(plant);
+              this.audio.playPrune();
+            }
+          });
+          this.extraPlantsCount++;
+          this.audio.playClick();
+        }
+      }
     });
+  }
+
+  createSeedTray(width, height) {
+    const seeds = this.save.unlockedSeeds || ['lily', 'fern'];
+    const trayX = width - 210;
+    const trayY = 92;
+    const trayH = 36 + seeds.length * 30;
+
+    const bg = this.add.graphics();
+    bg.fillStyle(PALETTE.hudCard, 0.92);
+    bg.fillRoundedRect(trayX, trayY, 190, trayH, 10);
+    bg.lineStyle(2, PALETTE.hudBorder, 0.85);
+    bg.strokeRoundedRect(trayX, trayY, 190, trayH, 10);
+
+    this.add.text(trayX + 14, trayY + 8, 'SEEDS (max 8)', {
+      fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: '#D4AF37'
+    });
+
+    this.seedButtons = {};
+    let sy = trayY + 30;
+    for (const seedId of seeds) {
+      const g = this.add.graphics();
+      const t = this.add.text(trayX + 22, sy + 4, seedId.toUpperCase(), {
+        fontFamily: 'Georgia, serif', fontSize: '12px', color: '#F7EEDD'
+      });
+      const hit = this.add.rectangle(trayX + 95, sy + 12, 166, 24, 0xffffff, 0.001).setInteractive({ cursor: 'pointer' });
+      hit.on('pointerdown', () => {
+        this.selectedSeed = (this.selectedSeed === seedId ? null : seedId);
+        if (this.selectedSeed) {
+          this.activeTool = null;
+          this.updateToolHighlight();
+        }
+        this.updateSeedTrayHighlight();
+        this.audio.playClick();
+      });
+      this.seedButtons[seedId] = { g, t, x: trayX + 12, y: sy };
+      sy += 30;
+    }
+    this.updateSeedTrayHighlight();
+  }
+
+  updateSeedTrayHighlight() {
+    if (!this.seedButtons) return;
+    for (const [id, info] of Object.entries(this.seedButtons)) {
+      info.g.clear();
+      const active = this.selectedSeed === id;
+      info.g.fillStyle(active ? 0x52B788 : 0x3C332A, 1);
+      info.g.fillRoundedRect(info.x, info.y, 166, 24, 5);
+      info.g.lineStyle(1.2, active ? 0x95D5B2 : PALETTE.brassMid, 0.9);
+      info.g.strokeRoundedRect(info.x, info.y, 166, 24, 5);
+      info.t.setColor(active ? '#0B3D2E' : '#F7EEDD');
+    }
+  }
+
+  removeSandboxPlant(plant) {
+    const idx = this.plants.indexOf(plant);
+    if (idx !== -1) this.plants.splice(idx, 1);
+    if (plant._caster) {
+      const ci = this.casters.indexOf(plant._caster);
+      if (ci !== -1) this.casters.splice(ci, 1);
+      if (this.shadowSystem && this.shadowSystem.casters) {
+        const si = this.shadowSystem.casters.indexOf(plant._caster);
+        if (si !== -1) this.shadowSystem.casters.splice(si, 1);
+      }
+    }
+    if (plant._handle) {
+      const hi = this.movableHandles.indexOf(plant._handle);
+      if (hi !== -1) this.movableHandles.splice(hi, 1);
+      plant._handle.destroy();
+      plant._handle = null;
+    }
+    plant.destroy();
+    this.extraPlantsCount = Math.max(0, this.extraPlantsCount - 1);
   }
 
   updateToolHighlight() {

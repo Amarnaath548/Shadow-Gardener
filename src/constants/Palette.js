@@ -97,5 +97,21 @@ export const BALANCE = {
   fernBloomRate: 0.15,    // +15% bloom per sec in shade
   fernRecoverRate: 0.22,  // -22% stress per sec in shade
   fernScorchRate: 0.26,   // +26% stress per sec in sun
-  fernSunDecayRate: 0.08  // -8% bloom per sec in sun
+  fernSunDecayRate: 0.08, // -8% bloom per sec in sun
+
+  // Upgrade tuning
+  deepRootsBonusSec: 2.0,
+  slowSunMultiplier: 0.8
+};
+
+export const SHOP_CATALOG = {
+  seeds: [
+    { id: 'puffball', name: 'Velvet Puffball', price: 25, desc: 'Shade-feeder that tolerates brief sun sweeps.' },
+    { id: 'orchid', name: 'Dappled Orchid', price: 40, desc: 'Hybrid that blooms on rhythmic sun & shade.' },
+    { id: 'cactus', name: 'Helio Cactus', price: 60, desc: 'Sun-lover that casts a small shadow.' }
+  ],
+  upgrades: [
+    { id: 'deepRoots', name: 'Deep Roots', price: 80, desc: 'Watered shade plants stay protected 2s longer.' },
+    { id: 'slowSun', name: 'Slow Sun', price: 100, desc: 'Auto-Orbit speed -20%.' }
+  ]
 };

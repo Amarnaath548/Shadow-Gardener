@@ -14,9 +14,10 @@ export class TitleScene extends Phaser.Scene {
 
     const btns = [
       { label: 'Play', onClick: () => this.scene.start('LevelSelectScene') },
+      { label: 'Greenhouse', onClick: () => this.scene.start('GreenhouseScene') },
       { label: 'Sandbox (Zen)', onClick: () => this.scene.start('GardenScene', { levelId: getSandboxId() }) }
     ];
-    let y = h/2 + 40;
+    let y = h/2 + 24;
     for (const b of btns) {
       const g = this.add.graphics();
       g.fillStyle(0x3C332A, 1);
