@@ -6,14 +6,22 @@ export class AudioSystem {
     this.volume = 0.7;
     this.muted = false;
     this._ambientStarted = false;
+    this._nextPluckTime = 0;
+    this._nextCelloTime = 0;
+    this._celloStep = 0;
   }
 
   ensure() {
-    if (this.ctx) return;
+    if (this.ctx) {
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      return;
+    }
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.volume;
+      this.master.gain.value = this.muted ? 0 : this.volume;
       this.master.connect(this.ctx.destination);
     } catch (e) {
       this.ctx = null;
@@ -87,39 +95,128 @@ export class AudioSystem {
 
   startAmbient() {
     if (this._ambientStarted) return;
+    if (typeof window === 'undefined') return;
     this.ensure();
     if (!this.ctx) return;
     this._ambientStarted = true;
-    // Simple droning pad: two detuned oscillators through a lowpass filter
+
     const ctx = this.ctx;
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
+    const sunBus = ctx.createGain();
+    const shadeBus = ctx.createGain();
+    sunBus.gain.value = 0;
+    shadeBus.gain.value = 0;
+    sunBus.connect(this.master);
+    shadeBus.connect(this.master);
+
+    this.ambientNodes = { sunBus, shadeBus };
+    this._nextPluckTime = ctx.currentTime + 0.25;
+    this._nextCelloTime = ctx.currentTime + 0.25;
+  }
+
+  _playMarimbaPluck(freq, time) {
+    const ctx = this.ctx;
+    if (!ctx || !this.ambientNodes) return;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.linearRampToValueAtTime(0.045, time + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.45);
+    g.connect(this.ambientNodes.sunBus);
+
+    const oscSine = ctx.createOscillator();
+    oscSine.type = 'sine';
+    oscSine.frequency.setValueAtTime(freq, time);
+    oscSine.connect(g);
+    oscSine.onended = () => {
+      try { oscSine.disconnect(); } catch (e) {}
+    };
+
+    const oscTri = ctx.createOscillator();
+    oscTri.type = 'triangle';
+    oscTri.frequency.setValueAtTime(freq * 2, time);
+    const triGain = ctx.createGain();
+    triGain.gain.setValueAtTime(0.28, time);
+    triGain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+    oscTri.connect(triGain);
+    triGain.connect(g);
+    oscTri.onended = () => {
+      try {
+        oscTri.disconnect();
+        triGain.disconnect();
+        g.disconnect();
+      } catch (e) {}
+    };
+
+    oscSine.start(time);
+    oscTri.start(time);
+    oscSine.stop(time + 0.48);
+    oscTri.stop(time + 0.48);
+  }
+
+  _playCelloNote(freq, time, dur = 3.8) {
+    const ctx = this.ctx;
+    if (!ctx || !this.ambientNodes) return;
+    const osc = ctx.createOscillator();
     const filter = ctx.createBiquadFilter();
     const g = ctx.createGain();
-    osc1.type = 'sine';
-    osc2.type = 'triangle';
-    osc1.frequency.value = 110;
-    osc2.frequency.value = 164.81;
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, time);
+
     filter.type = 'lowpass';
-    filter.frequency.value = 600;
-    filter.Q.value = 1.2;
-    g.gain.value = 0.04;
-    osc1.connect(filter);
-    osc2.connect(filter);
+    filter.frequency.setValueAtTime(380, time);
+    filter.Q.setValueAtTime(1.1, time);
+
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.linearRampToValueAtTime(0.032, time + 1.2);
+    g.gain.setValueAtTime(0.032, time + dur - 1.2);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+
+    osc.connect(filter);
     filter.connect(g);
-    g.connect(this.master);
-    osc1.start();
-    osc2.start();
-    this.ambientNodes = { osc1, osc2, filter, gain: g };
+    g.connect(this.ambientNodes.shadeBus);
+
+    osc.onended = () => {
+      try {
+        osc.disconnect();
+        filter.disconnect();
+        g.disconnect();
+      } catch (e) {}
+    };
+
+    osc.start(time);
+    osc.stop(time + dur + 0.05);
   }
 
   updateAmbient(sunElevation) {
-    if (!this.ambientNodes) return;
-    const f = this.ambientNodes.filter;
-    // brighter (higher cutoff) when sun high
-    const cutoff = 400 + sunElevation * 900;
-    f.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 0.5);
-    const g = this.ambientNodes.gain;
-    g.gain.setTargetAtTime(0.03 + sunElevation * 0.03, this.ctx.currentTime, 0.5);
+    if (!this._ambientStarted) this.startAmbient();
+    if (!this.ambientNodes || !this.ctx || this.ctx.state !== 'running') return;
+
+    const now = this.ctx.currentTime;
+    const t = Math.max(0, Math.min(1, (sunElevation - 0.35) / 0.65));
+    const sunMix = t;
+    const shadeMix = 1 - t;
+
+    this.ambientNodes.sunBus.gain.setTargetAtTime(sunMix, now, 0.35);
+    this.ambientNodes.shadeBus.gain.setTargetAtTime(shadeMix, now, 0.35);
+
+    if (sunMix > 0.15 && now >= this._nextPluckTime) {
+      const pentatonic = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+      const freq = pentatonic[Math.floor(Math.random() * pentatonic.length)];
+      this._playMarimbaPluck(freq, now);
+      this._nextPluckTime = now + 0.6 + Math.random() * 0.6;
+    }
+
+    if (shadeMix > 0.15 && now >= this._nextCelloTime) {
+      const pairs = [
+        [130.81, 196.0],
+        [146.83, 220.0],
+        [110.0, 164.81]
+      ];
+      const pair = pairs[this._celloStep % pairs.length];
+      this._celloStep++;
+      this._playCelloNote(pair[0], now, 3.8);
+      this._playCelloNote(pair[1], now + 0.35, 3.6);
+      this._nextCelloTime = now + 3.4;
+    }
   }
 }
