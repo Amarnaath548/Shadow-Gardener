@@ -234,44 +234,12 @@ export class GardenScene extends Phaser.Scene {
     const hasMove = (this.level.plants || []).some(p => p.movable);
     const hasRotate = (this.level.casters || []).some(c => c.rotatable);
     if (hasMove || hasRotate) {
-      this.add.text(24, height - 170, 'Drag pots to move, click obelisks to rotate', { fontFamily: 'Georgia, serif', fontSize: '11px', color: '#C9BA9E' });
+      this.add.text(24, height - 156, 'Drag pots to move, click obelisks to rotate', { fontFamily: 'Georgia, serif', fontSize: '11px', color: '#C9BA9E' });
     }
   }
 
   createToolPanel(width, height) {
     const tools = this.level.tools || [];
-    const panel = this.add.container(20, height - 230);
-    const bg = this.add.graphics();
-    bg.fillStyle(PALETTE.hudCard, 0.94);
-    bg.fillRoundedRect(0, 0, 260, 100, 10);
-    bg.lineStyle(2, PALETTE.hudBorder, 0.85);
-    bg.strokeRoundedRect(0, 0, 260, 100, 10);
-    panel.add(bg);
-    this.add.text(34, height - 222, 'TOOLS', { fontFamily: 'Georgia, serif', fontSize: '13px', fontStyle: 'bold', color: '#D4AF37', letterSpacing: 2 });
-
-    const btns = [];
-    const makeBtn = (label, tool, y) => {
-      if (!tools.includes(tool)) return;
-      const b = this.add.container(34, height - 222 + y);
-      const g = this.add.graphics();
-      g.fillStyle(0x3C332A, 1);
-      g.fillRoundedRect(0, 0, 110, 26, 5);
-      g.lineStyle(1.2, PALETTE.brassMid, 0.8);
-      g.strokeRoundedRect(0, 0, 110, 26, 5);
-      const t = this.add.text(8, 5, label, { fontFamily: 'Georgia, serif', fontSize: '12px', color: '#F7EEDD' });
-      b.add([g, t]);
-      b.setSize(110, 26);
-      b.setInteractive({ cursor: 'pointer' });
-      b.on('pointerdown', () => { this.activeTool = (this.activeTool === tool ? null : tool); this.updateToolHighlight(); this.audio.playClick(); });
-      btns.push({ tool, b });
-      return b;
-    };
-    makeBtn('Water', 'water', 22);
-    makeBtn('Prune', 'prune', 22 + (tools.includes('water') ? 0 : 0));
-    // layout: two columns
-    // redo layout manually
-    panel.destroy();
-    // rebuild simpler: horizontal buttons
     const bar = this.add.graphics();
     bar.fillStyle(PALETTE.hudCard, 0.94);
     bar.fillRoundedRect(20, height - 232, 300, 46, 10);
