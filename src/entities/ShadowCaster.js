@@ -213,11 +213,15 @@ export class WhisperingBanyan extends ShadowCaster {
   water() {
     this.growth = Math.min(this.maxGrowth, this.growth + 6);
     this.height = this.growth;
+    this.radius = this.growth;
+    this.regenerateFootprint();
   }
 
   prune() {
     this.growth = Math.max(this.minGrowth, this.growth - 8);
     this.height = this.growth;
+    this.radius = this.growth;
+    this.regenerateFootprint();
   }
 
   getFootprintVertices() {

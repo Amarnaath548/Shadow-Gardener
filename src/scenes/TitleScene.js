@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { getSandboxId } from '../systems/LevelManager.js';
 
 export class TitleScene extends Phaser.Scene {
   constructor() { super({ key: 'TitleScene' }); }
@@ -13,7 +14,7 @@ export class TitleScene extends Phaser.Scene {
 
     const btns = [
       { label: 'Play', onClick: () => this.scene.start('LevelSelectScene') },
-      { label: 'Sandbox (Zen)', onClick: () => this.scene.start('GardenScene', { levelId: 7 }) }
+      { label: 'Sandbox (Zen)', onClick: () => this.scene.start('GardenScene', { levelId: getSandboxId() }) }
     ];
     let y = h/2 + 40;
     for (const b of btns) {

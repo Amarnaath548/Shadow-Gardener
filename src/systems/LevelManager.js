@@ -49,7 +49,21 @@ export const LEVELS = [
     parTime: 120
   },
   {
-    id: 3, name: 'Rotating Shadows', chapter: 3,
+    id: 3, name: 'Thirsty Grove', chapter: 2,
+    desc: 'Water the Banyan so its shadow reaches the distant fern, then prune it to free the lily.',
+    plants: [
+      { type: 'fern', ox: -95, oy: 80 },
+      { type: 'lily', ox: 65, oy: 20 }
+    ],
+    casters: [
+      { type: 'banyan', ox: 0, oy: -130, radius: 36 }
+    ],
+    goal: { type: 'bloomAll' },
+    tools: ['sun', 'water', 'prune'],
+    parTime: 110
+  },
+  {
+    id: 4, name: 'Rotating Shadows', chapter: 3,
     desc: 'Rotate the obelisks to redirect shadows as the sun moves.',
     plants: [
       { type: 'lily', ox: 140, oy: 50 },
@@ -65,7 +79,21 @@ export const LEVELS = [
     parTime: 100
   },
   {
-    id: 4, name: 'Dappled Dance', chapter: 3,
+    id: 5, name: 'Sliding Tracks', chapter: 3,
+    desc: 'Slide planters along brass rails and rotate the obelisk with Auto-Orbit.',
+    plants: [
+      { type: 'fern', ox: -90, oy: 60, movable: true, track: { ax: -110, ay: 60, bx: 110, by: 60 } },
+      { type: 'lily', ox: 90, oy: -10, movable: true, track: { ax: 90, ay: -80, bx: 90, by: 80 } }
+    ],
+    casters: [
+      { type: 'obelisk', ox: 0, oy: -40, scale: 1.15, angle: 0, rotatable: true }
+    ],
+    goal: { type: 'bloomAll' },
+    tools: ['sun', 'rotate', 'autoOrbit'],
+    parTime: 100
+  },
+  {
+    id: 6, name: 'Dappled Dance', chapter: 3,
     desc: 'Dappled Orchid needs rhythmic sun and shade. Use Auto-Orbit.',
     plants: [
       { type: 'orchid', ox: 0, oy: 60 },
@@ -80,7 +108,22 @@ export const LEVELS = [
     parTime: 90
   },
   {
-    id: 5, name: 'Movable Pots', chapter: 3,
+    id: 7, name: 'Tidal Rhythm', chapter: 3,
+    desc: 'Time Auto-Orbit with two rotating obelisks for the Dappled Orchid and Velvet Puffball.',
+    plants: [
+      { type: 'orchid', ox: 0, oy: 45 },
+      { type: 'puffball', ox: -70, oy: 35 }
+    ],
+    casters: [
+      { type: 'obelisk', ox: -70, oy: -40, scale: 1.15, angle: 0, rotatable: true },
+      { type: 'obelisk', ox: 70, oy: -40, scale: 1.15, angle: 0, rotatable: true }
+    ],
+    goal: { type: 'bloomAll' },
+    tools: ['sun', 'rotate', 'autoOrbit'],
+    parTime: 110
+  },
+  {
+    id: 8, name: 'Movable Pots', chapter: 3,
     desc: 'Drag planters into the right light.',
     plants: [
       { type: 'fern', ox: -40, oy: 70, movable: true },
@@ -94,7 +137,24 @@ export const LEVELS = [
     parTime: 90
   },
   {
-    id: 7, name: 'Zen Garden', chapter: 0,
+    id: 9, name: 'Mixed Garden', chapter: 4,
+    desc: 'Combine everything. Velvet Puffball tolerates brief sun sweeps.',
+    plants: [
+      { type: 'lily', ox: 150, oy: 40 },
+      { type: 'fern', ox: -150, oy: 40 },
+      { type: 'puffball', ox: 0, oy: 90 },
+      { type: 'cactus', ox: 80, oy: -10 }
+    ],
+    casters: [
+      { type: 'banyan', ox: -60, oy: -120, radius: 48 },
+      { type: 'obelisk', ox: 60, oy: -100, scale: 1.0, angle: 0, rotatable: true }
+    ],
+    goal: { type: 'bloomAll' },
+    tools: ['sun', 'water', 'prune', 'rotate', 'autoOrbit'],
+    parTime: 150
+  },
+  {
+    id: 10, name: 'Zen Garden', chapter: 0,
     desc: 'Free play. No goals, no failure. Experiment with light and shadow.',
     plants: [
       { type: 'lily', ox: 150, oy: 40, movable: true },
@@ -110,25 +170,12 @@ export const LEVELS = [
     goal: { type: 'sandbox' },
     tools: ['sun', 'water', 'prune', 'rotate', 'autoOrbit'],
     parTime: 0
-  },
-  {
-    id: 6, name: 'Mixed Garden', chapter: 4,
-    desc: 'Combine everything. Velvet Puffball tolerates brief sun sweeps.',
-    plants: [
-      { type: 'lily', ox: 150, oy: 40 },
-      { type: 'fern', ox: -150, oy: 40 },
-      { type: 'puffball', ox: 0, oy: 90 },
-      { type: 'cactus', ox: 80, oy: -10 }
-    ],
-    casters: [
-      { type: 'banyan', ox: -60, oy: -120, radius: 48 },
-      { type: 'obelisk', ox: 60, oy: -100, scale: 1.0, angle: 0, rotatable: true }
-    ],
-    goal: { type: 'bloomAll' },
-    tools: ['sun', 'water', 'prune', 'rotate', 'autoOrbit'],
-    parTime: 150
   }
 ];
 
 export function getLevel(id) { return LEVELS.find(l => l.id === id) || LEVELS[0]; }
 export function levelCount() { return LEVELS.length; }
+export function getSandboxId() {
+  const s = LEVELS.find(l => l.goal && l.goal.type === 'sandbox');
+  return s ? s.id : LEVELS.length - 1;
+}

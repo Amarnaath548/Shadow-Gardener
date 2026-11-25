@@ -1,12 +1,23 @@
 export class SaveSystem {
-  static KEY = 'shadow_gardener_save_v1';
+  static KEY = 'shadow_gardener_save_v2';
+  static defaultSave() {
+    return {
+      pollen: 0,
+      unlockedLevels: [0],
+      best: {},
+      unlockedSeeds: ['lily', 'fern'],
+      upgrades: {},
+      settings: { volume: 0.7, highContrast: false, reducedMotion: false, colorblind: false }
+    };
+  }
   static load() {
     try {
       const raw = localStorage.getItem(SaveSystem.KEY);
-      if (!raw) return { pollen: 0, unlockedLevels: [0], best: {}, settings: { volume: 0.7, highContrast: false, reducedMotion: false, colorblind: false } };
-      return JSON.parse(raw);
+      if (!raw) return SaveSystem.defaultSave();
+      const parsed = JSON.parse(raw);
+      return { ...SaveSystem.defaultSave(), ...parsed };
     } catch (e) {
-      return { pollen: 0, unlockedLevels: [0], best: {}, settings: { volume: 0.7, highContrast: false, reducedMotion: false, colorblind: false } };
+      return SaveSystem.defaultSave();
     }
   }
   static save(data) {

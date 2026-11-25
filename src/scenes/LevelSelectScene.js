@@ -12,13 +12,13 @@ export class LevelSelectScene extends Phaser.Scene {
     const unlocked = save.unlockedLevels || [0];
     const best = save.best || {};
 
-    let x = 80, y = 110;
+    let x = 80, y = 90;
     const cols = 3;
     for (let i = 0; i < LEVELS.length; i++) {
       const L = LEVELS[i];
       const isUnlocked = unlocked.includes(i);
       const bx = x + (i % cols) * 300;
-      const by = y + Math.floor(i / cols) * 150;
+      const by = y + Math.floor(i / cols) * 136;
 
       const g = this.add.graphics();
       g.fillStyle(isUnlocked ? 0x2F2922 : 0x1A1714, 0.95);

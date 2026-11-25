@@ -127,7 +127,7 @@ function report(name, ok, extra = '') {
   report('e) time strings', timeOk, `${tNoon}, ${tSix}, ${tEighteen}, ${tMid}`);
 }
 
-// f) Scripted solutions for puzzle levels 0-6 via Simulator
+// f) Scripted solutions for puzzle levels 0-9 via Simulator
 const deg = d => (d * Math.PI) / 180;
 const SOLUTIONS = {
   0: (sim) => {
@@ -147,13 +147,33 @@ const SOLUTIONS = {
     sim.runFor(10);
   },
   3: (sim) => {
-    sim.setSunAngle(deg(-55));
+    const banyan = sim.world.casters[0];
+    sim.setSunAngle(deg(-90));
+    // Water Banyan until its shadow reaches the distant fern
+    for (let i = 0; i < 7; i++) sim.water(banyan);
+    sim.runFor(15);
+    // Prune Banyan to free the lily
+    for (let i = 0; i < 6; i++) sim.prune(banyan);
     sim.runFor(15);
   },
   4: (sim) => {
+    sim.setSunAngle(deg(-55));
+    sim.runFor(15);
+  },
+  5: (sim) => {
+    const cx = sim.world.scene.centerX;
+    const cy = sim.world.scene.centerY;
+    const [fern, lily] = sim.world.plants;
+    const obelisk = sim.world.casters[0];
+    sim.rotate(obelisk);
+    sim.movePlant(fern, cx, cy + 60);
+    sim.movePlant(lily, cx + 90, cy - 60);
+    sim.setSunAngle(deg(-90));
+    sim.runFor(15);
+  },
+  6: (sim) => {
     sim.setSunAngle(deg(-75));
     sim.runFor(15);
-    // Orchid needs rhythmic sun & shade transitions (0.6s - 6.0s)
     for (let i = 0; i < 4; i++) {
       sim.setSunAngle(deg(-132));
       sim.runFor(2);
@@ -161,7 +181,22 @@ const SOLUTIONS = {
       sim.runFor(2);
     }
   },
-  5: (sim) => {
+  7: (sim) => {
+    const ob0 = sim.world.casters[0];
+    const ob1 = sim.world.casters[1];
+    sim.rotate(ob1);
+    // Keep puffball shaded under ob0 until it blooms
+    sim.setSunAngle(deg(-90));
+    sim.runFor(15);
+    // Alternate sun/shade on orchid using ob1 while puffball is already bloomed
+    for (let i = 0; i < 4; i++) {
+      sim.setSunAngle(deg(-50));
+      sim.runFor(2);
+      sim.setSunAngle(deg(-110));
+      sim.runFor(2);
+    }
+  },
+  8: (sim) => {
     const cx = sim.world.scene.centerX;
     const cy = sim.world.scene.centerY;
     const [fern, lily] = sim.world.plants;
@@ -170,7 +205,7 @@ const SOLUTIONS = {
     sim.setSunAngle(deg(-90));
     sim.runFor(15);
   },
-  6: (sim) => {
+  9: (sim) => {
     const banyan = sim.world.casters[0];
     const obelisk = sim.world.casters[1];
     sim.water(banyan);
@@ -180,7 +215,7 @@ const SOLUTIONS = {
   }
 };
 
-for (let id = 0; id <= 6; id++) {
+for (let id = 0; id <= 9; id++) {
   const L = getLevel(id);
   const sim = new Simulator(L);
   SOLUTIONS[id](sim);
