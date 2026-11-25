@@ -1,12 +1,10 @@
 import { PALETTE, BALANCE } from '../constants/Palette.js';
-import { SunDial } from '../entities/SunDial.js';
-import { BasaltObelisk, WhisperingBanyan } from '../entities/ShadowCaster.js';
-import { SolarisLily, GhostFern, DappledOrchid, VelvetPuffball, HelioCactus } from '../entities/Plant.js';
-import { ShadowSystem } from '../systems/ShadowSystem.js';
+import { BasaltObelisk } from '../entities/ShadowCaster.js';
 import { getSunElevation } from '../entities/SunDial.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { LEVELS, getLevel } from '../systems/LevelManager.js';
+import { buildLevel } from '../systems/LevelBuilder.js';
 import Phaser from 'phaser';
 
 export class GardenScene extends Phaser.Scene {
@@ -39,16 +37,12 @@ export class GardenScene extends Phaser.Scene {
     this.gardenGraphics = this.add.graphics();
     this.drawTerracedGarden(centerX, centerY);
 
-    this.shadowSystem = new ShadowSystem(this);
-
     this.casters = [];
     this.plants = [];
     this.movableHandles = [];
     this.obeliskHandles = [];
 
     this.buildLevel();
-
-    this.sunDial = new SunDial(this, centerX, centerY);
 
     this.createHUD(width, height);
     this.createToolPanel(width, height);
@@ -72,59 +66,13 @@ export class GardenScene extends Phaser.Scene {
   }
 
   buildLevel() {
-    const cx = this.centerX, cy = this.centerY;
-    const L = this.level;
+    const { casters, plants, shadowSystem, sunDial } = buildLevel(this, this.level);
+    this.casters = casters;
+    this.plants = plants;
+    this.shadowSystem = shadowSystem;
+    this.sunDial = sunDial;
 
-    // casters
-    for (const c of L.casters) {
-      let caster;
-      if (c.type === 'banyan') {
-        caster = new WhisperingBanyan(this, cx + c.ox, cy + c.oy, c.radius || 52);
-      } else if (c.type === 'obelisk') {
-        caster = new BasaltObelisk(this, cx + c.ox, cy + c.oy, c.scale || 1.0, !!c.rotatable);
-      }
-      if (caster) {
-        this.casters.push(caster);
-        this.shadowSystem.addCaster(caster);
-      }
-    }
-
-    // plants
-    for (const p of L.plants) {
-      let plant;
-      const x = cx + p.ox, y = cy + p.oy;
-      switch (p.type) {
-        case 'lily': plant = new SolarisLily(this, x, y); break;
-        case 'fern': plant = new GhostFern(this, x, y); break;
-        case 'orchid': plant = new DappledOrchid(this, x, y); break;
-        case 'puffball': plant = new VelvetPuffball(this, x, y); break;
-        case 'cactus': plant = new HelioCactus(this, x, y); break;
-        default: plant = new SolarisLily(this, x, y); break;
-      }
-      plant.movable = !!p.movable;
-      this.plants.push(plant);
-
-      // cactus casts small shadow
-      if (p.type === 'cactus') {
-        const pseudo = {
-          x: plant.x, y: plant.y,
-          height: 28,
-          shadowLengthMultiplier: 0.5,
-          getFootprintVertices: () => {
-            const hw = 6, hh = 6;
-            return [
-              { x: plant.x - hw, y: plant.y - hh },
-              { x: plant.x + hw, y: plant.y - hh },
-              { x: plant.x + hw, y: plant.y + hh },
-              { x: plant.x - hw, y: plant.y + hh }
-            ];
-          }
-        };
-        plant._caster = pseudo;
-        this.casters.push(pseudo);
-        this.shadowSystem.addCaster(pseudo);
-      }
-
+    for (const plant of this.plants) {
       if (plant.movable) {
         this.makeMovable(plant);
       }

@@ -4,6 +4,7 @@ import { BasaltObelisk, WhisperingBanyan } from '../src/entities/ShadowCaster.js
 import { SolarisLily, GhostFern, HelioCactus, VelvetPuffball, DappledOrchid } from '../src/entities/Plant.js';
 import { SunDial, getSunElevation } from '../src/entities/SunDial.js';
 import { LEVELS, getLevel } from '../src/systems/LevelManager.js';
+import { Simulator } from '../src/systems/Simulator.js';
 
 const g = () => new Proxy({}, { get: () => () => {} });
 const scene = { centerX: 512, centerY: 369, settings: {}, add: { graphics: g, circle: g }, input: { on() {}, off() {} } };
@@ -126,67 +127,67 @@ function report(name, ok, extra = '') {
   report('e) time strings', timeOk, `${tNoon}, ${tSix}, ${tEighteen}, ${tMid}`);
 }
 
-// f) Static solvability levels 0-6
-const interactLevels = new Set([2, 3, 4, 5, 6]);
+// f) Scripted solutions for puzzle levels 0-6 via Simulator
+const deg = d => (d * Math.PI) / 180;
+const SOLUTIONS = {
+  0: (sim) => {
+    sim.setSunAngle(deg(-75));
+    sim.runFor(15);
+  },
+  1: (sim) => {
+    sim.setSunAngle(deg(-80));
+    sim.runFor(15);
+  },
+  2: (sim) => {
+    const banyan = sim.world.casters[0];
+    sim.water(banyan);
+    sim.setSunAngle(deg(-70));
+    sim.runFor(15);
+    sim.prune(banyan);
+    sim.runFor(10);
+  },
+  3: (sim) => {
+    sim.setSunAngle(deg(-55));
+    sim.runFor(15);
+  },
+  4: (sim) => {
+    sim.setSunAngle(deg(-75));
+    sim.runFor(15);
+    // Orchid needs rhythmic sun & shade transitions (0.6s - 6.0s)
+    for (let i = 0; i < 4; i++) {
+      sim.setSunAngle(deg(-132));
+      sim.runFor(2);
+      sim.setSunAngle(deg(-100));
+      sim.runFor(2);
+    }
+  },
+  5: (sim) => {
+    const cx = sim.world.scene.centerX;
+    const cy = sim.world.scene.centerY;
+    const [fern, lily] = sim.world.plants;
+    sim.movePlant(fern, cx, cy + 20);
+    sim.movePlant(lily, cx + 100, cy + 70);
+    sim.setSunAngle(deg(-90));
+    sim.runFor(15);
+  },
+  6: (sim) => {
+    const banyan = sim.world.casters[0];
+    const obelisk = sim.world.casters[1];
+    sim.water(banyan);
+    sim.rotate(obelisk);
+    sim.setSunAngle(deg(-65));
+    sim.runFor(20);
+  }
+};
+
 for (let id = 0; id <= 6; id++) {
   const L = getLevel(id);
-  const cx = 512, cy = 369;
-  const casters = [];
-  const plants = [];
-  for (const c of L.casters) {
-    const caster = makeCaster(c, cx, cy);
-    if (caster) casters.push(caster);
-    if (c.type === 'cactus') {
-      // cactus plants may have pseudo caster; handled when building plants
-    }
-  }
-  for (const p of L.plants) {
-    const pl = plantByType(p.type, cx + p.ox, cy + p.oy);
-    pl.movable = !!p.movable;
-    plants.push(pl);
-    if (p.type === 'cactus') {
-      const pseudo = {
-        x: pl.x, y: pl.y, height: 28, shadowLengthMultiplier: 0.5,
-        getFootprintVertices() {
-          const hw = 6, hh = 6;
-          return [
-            { x: pl.x - hw, y: pl.y - hh },
-            { x: pl.x + hw, y: pl.y - hh },
-            { x: pl.x + hw, y: pl.y + hh },
-            { x: pl.x - hw, y: pl.y + hh }
-          ];
-        }
-      };
-      pl._caster = pseudo;
-      casters.push(pseudo);
-    }
-  }
-  const ss = makeShadow();
-  for (const c of casters) ss.addCaster(c);
-
-  if (interactLevels.has(id)) {
-    console.log(`INFO - level ${id} (${L.name}): needs interaction, static check not conclusive`);
-    continue;
-  }
-
-  let found = false;
-  for (let deg = 0; deg < 360; deg += 5) {
-    const ang = deg * Math.PI / 180;
-    const sunX = cx + Math.cos(ang) * 295;
-    const sunY = cy + Math.sin(ang) * 295;
-    ss.update(sunX, sunY);
-    let ok = true;
-    for (const pl of plants) {
-      const ignore = pl._caster || null;
-      const shaded = ss.isPointInShadow(pl.x, pl.y, sunX, sunY, ignore);
-      const isSunLover = pl.type === 'sun_lover';
-      const isShadeFeeder = pl.type === 'shade_feeder';
-      if (isSunLover && shaded) ok = false;
-      if (isShadeFeeder && !shaded) ok = false;
-    }
-    if (ok) { found = true; break; }
-  }
-  report(`f) level ${id} static solvable`, found, L.name);
+  const sim = new Simulator(L);
+  SOLUTIONS[id](sim);
+  const anyDead = sim.world.plants.some(p => p.isDead);
+  const ok = sim.world.levelComplete && !sim.world.levelFailed && !anyDead;
+  const detail = ok ? '' : ' ' + sim.world.plants.map(p => `${p.name}(sh=${p.isShaded},bl=${p.bloomCharge.toFixed(2)},dead=${p.isDead})`).join(' ');
+  report(`f) level ${id} (${L.name})`, ok, `complete=${sim.world.levelComplete} failed=${sim.world.levelFailed} dead=${anyDead}${detail}`);
 }
 
 console.log(`\nTOTAL PASS=${pass} FAIL=${fail}`);
