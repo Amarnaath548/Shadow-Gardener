@@ -56,9 +56,9 @@ export class ShadowSystem {
 
     const hc = this.scene && this.scene.settings && this.scene.settings.highContrast;
     const alpha = hc ? Math.min(0.85, PALETTE.shadowAlpha + 0.2) : PALETTE.shadowAlpha;
-    // Outer soft ambient shadow tint (cool indigo gouache)
+    // Cool indigo gouache shadow tint
     graphics.fillStyle(PALETTE.shadowIndigo, alpha);
-    graphics.lineStyle(1.5, PALETTE.shadowIndigo, alpha * 0.8);
+    graphics.lineStyle(hc ? 2.5 : 1.5, hc ? 0x2A355C : 0x1E2647, hc ? 0.95 : alpha * 0.85);
 
     for (const poly of this.shadowPolygons) {
       if (!poly || poly.length < 3) continue;

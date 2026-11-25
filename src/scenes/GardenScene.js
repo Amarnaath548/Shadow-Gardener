@@ -37,6 +37,11 @@ export class GardenScene extends Phaser.Scene {
     this.gardenGraphics = this.add.graphics();
     this.drawTerracedGarden(centerX, centerY);
 
+    this.warmGlowGraphics = this.add.graphics();
+    this.warmGlowGraphics.setBlendMode(Phaser.BlendModes.ADD);
+
+    this.createGouacheGrain(width, height);
+
     this.casters = [];
     this.plants = [];
     this.movableHandles = [];
@@ -516,6 +521,7 @@ export class GardenScene extends Phaser.Scene {
 
     // day/night overlay
     const elev = getSunElevation(sun.angle);
+    this.updateWarmGlow(sun.x, sun.y, elev);
     this.dayNightOverlay.clear();
     const nightAlpha = (1 - elev) * 0.35;
     this.dayNightOverlay.fillStyle(0x0B1026, nightAlpha);
@@ -636,6 +642,43 @@ export class GardenScene extends Phaser.Scene {
     g.strokeCircle(cx, cy, 246);
     g.lineStyle(1.5, PALETTE.stoneLight, 0.5);
     g.strokeCircle(cx, cy, 244);
+  }
+
+  createGouacheGrain(width, height) {
+    if (!this.textures.exists('gouache-grain')) {
+      const size = 256;
+      const tex = this.textures.createCanvas('gouache-grain', size, size);
+      const ctx = tex.getContext();
+      const img = ctx.createImageData(size, size);
+      const data = img.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const v = 115 + Math.floor(Math.random() * 40);
+        data[i] = v + 6;
+        data[i + 1] = v + 2;
+        data[i + 2] = v - 4;
+        data[i + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      tex.refresh();
+    }
+    this.grainOverlay = this.add.tileSprite(width / 2, height / 2, width, height, 'gouache-grain');
+    this.grainOverlay.setAlpha(0.06);
+    this.grainOverlay.setBlendMode(Phaser.BlendModes.MULTIPLY);
+  }
+
+  updateWarmGlow(sunX, sunY, elev) {
+    if (!this.warmGlowGraphics) return;
+    this.warmGlowGraphics.clear();
+    if (this.settings.reducedMotion) return;
+    const gx = sunX + (this.centerX - sunX) * 0.35;
+    const gy = sunY + (this.centerY - sunY) * 0.35;
+    const baseAlpha = 0.055 * elev;
+    const radii = [280, 210, 145, 85];
+    const cols = [PALETTE.sunGlow, PALETTE.sunGlow, PALETTE.sunCore, PALETTE.sunCore];
+    for (let i = 0; i < radii.length; i++) {
+      this.warmGlowGraphics.fillStyle(cols[i], baseAlpha);
+      this.warmGlowGraphics.fillCircle(gx, gy, radii[i]);
+    }
   }
 
   cleanup() {
