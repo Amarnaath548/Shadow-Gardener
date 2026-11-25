@@ -1,4 +1,5 @@
 import { PALETTE, BALANCE } from '../constants/Palette.js';
+import { ensureSprite, createPixelImage } from '../systems/PixelArt.js';
 
 /**
  * Orbital Sun Dial entity:
@@ -113,6 +114,9 @@ export class SunDial {
       window.removeEventListener('blur', this._onWindowPointerUp);
     }
 
+    if (this.sunRaysSprite) { this.sunRaysSprite.destroy(); this.sunRaysSprite = null; }
+    if (this.sunOrbSprite) { this.sunOrbSprite.destroy(); this.sunOrbSprite = null; }
+
     if (this.ringGraphics) {
       this.ringGraphics.destroy();
       this.ringGraphics = null;
@@ -208,62 +212,42 @@ export class SunDial {
   }
 
   /**
-   * Draws the miniature sun orb with radiant glowing spikes.
+   * Draws the miniature pixel-art sun orb with rotating pixel rays.
    */
   drawSun() {
     const g = this.sunGraphics;
     g.clear();
 
-    const x = this.sunX;
-    const y = this.sunY;
+    const x = Math.round(this.sunX);
+    const y = Math.round(this.sunY);
 
-    // Outer warm solar aura
-    const auraPulse = Math.sin(this.pulseTime) * 3;
-    g.fillStyle(PALETTE.sunGlow, 0.22);
-    g.fillCircle(x, y, 36 + auraPulse);
+    // Pixelated warm solar aura
+    const auraPulse = Math.round(Math.sin(this.pulseTime) * 3);
+    g.fillStyle(PALETTE.sunGlow, 0.2);
+    g.fillRect(x - 28 - auraPulse, y - 28 - auraPulse, 56 + auraPulse * 2, 56 + auraPulse * 2);
+    g.fillStyle(PALETTE.sunGlow, 0.35);
+    g.fillRect(x - 20, y - 20, 40, 40);
 
-    g.fillStyle(PALETTE.sunGlow, 0.4);
-    g.fillCircle(x, y, 26 + auraPulse * 0.5);
-
-    // Procedural spiky sunburst rays (8 rays)
-    const numRays = 8;
-    const rayBaseRadius = 16;
-    const rayTipRadius = 24 + Math.sin(this.pulseTime * 1.5) * 2;
-
-    g.fillStyle(PALETTE.sunRays, 0.95);
-    for (let i = 0; i < numRays; i++) {
-      const baseAngle = (i / numRays) * Math.PI * 2 + (this.pulseTime * 0.15);
-      const halfWidth = (Math.PI / numRays) * 0.45;
-
-      const p1x = x + Math.cos(baseAngle - halfWidth) * rayBaseRadius;
-      const p1y = y + Math.sin(baseAngle - halfWidth) * rayBaseRadius;
-
-      const p2x = x + Math.cos(baseAngle) * rayTipRadius;
-      const p2y = y + Math.sin(baseAngle) * rayTipRadius;
-
-      const p3x = x + Math.cos(baseAngle + halfWidth) * rayBaseRadius;
-      const p3y = y + Math.sin(baseAngle + halfWidth) * rayBaseRadius;
-
-      g.beginPath();
-      g.moveTo(p1x, p1y);
-      g.lineTo(p2x, p2y);
-      g.lineTo(p3x, p3y);
-      g.closePath();
-      g.fillPath();
+    const raysKey = ensureSprite(this.scene, 'sun_rays');
+    if (raysKey) {
+      if (!this.sunRaysSprite) {
+        this.sunRaysSprite = createPixelImage(this.scene, x, y, raysKey, 2);
+        if (this.sunRaysSprite) this.sunRaysSprite.setDepth(4);
+      } else {
+        this.sunRaysSprite.setPosition(x, y);
+        this.sunRaysSprite.setRotation(this.pulseTime * 0.15);
+      }
     }
 
-    // Outer sun rim (brass edge matching rail carriage)
-    g.lineStyle(2.5, PALETTE.brassMid, 1);
-    g.fillStyle(PALETTE.sunGlow, 1);
-    g.fillCircle(x, y, 16);
-    g.strokeCircle(x, y, 16);
-
-    // Glowing intense sun core
-    g.fillStyle(PALETTE.sunCore, 1);
-    g.fillCircle(x, y, 12);
-
-    g.fillStyle(PALETTE.brassHighlight, 0.9);
-    g.fillCircle(x - 3, y - 3, 5);
+    const orbKey = ensureSprite(this.scene, 'sun_orb');
+    if (orbKey) {
+      if (!this.sunOrbSprite) {
+        this.sunOrbSprite = createPixelImage(this.scene, x, y, orbKey, 2);
+        if (this.sunOrbSprite) this.sunOrbSprite.setDepth(4);
+      } else {
+        this.sunOrbSprite.setPosition(x, y);
+      }
+    }
   }
 
   getSunPosition() {

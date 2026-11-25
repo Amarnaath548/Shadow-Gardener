@@ -5,6 +5,7 @@ import { SaveSystem } from '../systems/SaveSystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { LEVELS, getLevel } from '../systems/LevelManager.js';
 import { buildLevel, createPlant, projectOntoSegment } from '../systems/LevelBuilder.js';
+import { ensureSprite, createPixelImage } from '../systems/PixelArt.js';
 import Phaser from 'phaser';
 
 export class GardenScene extends Phaser.Scene {
@@ -571,15 +572,16 @@ export class GardenScene extends Phaser.Scene {
 
   createBloomSparks(x, y, color) {
     for (let i = 0; i < 14; i++) {
-      const spark = this.add.circle(x, y - 15, 3, color, 1.0);
+      const spark = this.add.rectangle(Math.round(x), Math.round(y - 15), 6, 6, color, 1.0);
+      spark.setDepth(6);
       const angle = Math.random() * Math.PI * 2;
       const speed = 40 + Math.random() * 60;
       this.tweens.add({
         targets: spark,
-        x: x + Math.cos(angle) * speed,
-        y: y - 15 + Math.sin(angle) * speed - 20,
+        x: Math.round(x + Math.cos(angle) * speed),
+        y: Math.round(y - 15 + Math.sin(angle) * speed - 20),
         alpha: 0,
-        scale: 0.2,
+        scale: 0.3,
         duration: 900,
         ease: 'Cubic.easeOut',
         onComplete: () => spark.destroy()
@@ -620,22 +622,49 @@ export class GardenScene extends Phaser.Scene {
     g.strokeCircle(cx, cy, 45);
     g.lineStyle(1.2, PALETTE.brassHighlight, 0.6);
     g.strokeCircle(cx, cy, 38);
+    if (!this.gardenDecals) this.gardenDecals = [];
+    const stoneKey = ensureSprite(this, 'stepping_stone');
     const stairAngles = [-Math.PI * 0.5, 0, Math.PI * 0.5, Math.PI];
     for (let i = 0; i < stairAngles.length; i++) {
       const a = stairAngles[i];
       const cosA = Math.cos(a), sinA = Math.sin(a);
-      const stairWidth = 32;
       const stepDepths = [110, 165, 220];
       for (let s = 0; s < stepDepths.length; s++) {
         const dist = stepDepths[s];
-        const sx = cx + cosA * dist;
-        const sy = cy + sinA * dist;
-        g.fillStyle(PALETTE.stoneBorder, 0.85);
-        g.fillEllipse(sx, sy + 3, stairWidth, 14);
-        g.fillStyle(PALETTE.stoneLight, 1.0);
-        g.fillEllipse(sx, sy, stairWidth, 12);
-        g.lineStyle(1.5, PALETTE.stoneDark, 0.8);
-        g.strokeEllipse(sx, sy, stairWidth, 12);
+        const sx = Math.round(cx + cosA * dist);
+        const sy = Math.round(cy + sinA * dist);
+        if (stoneKey) {
+          const img = createPixelImage(this, sx, sy, stoneKey, 1.8);
+          if (img) {
+            img.setDepth(0);
+            this.gardenDecals.push(img);
+          }
+        }
+      }
+    }
+
+    // Deterministic pixel-art grass tufts & pebbles in the soil beds
+    const tuftKey = ensureSprite(this, 'grass_tuft');
+    const pebbleKey = ensureSprite(this, 'pebble');
+    if (tuftKey && pebbleKey) {
+      const radii = [125, 145, 190, 210];
+      for (let rIdx = 0; rIdx < radii.length; rIdx++) {
+        const r = radii[rIdx];
+        const count = 8 + rIdx * 2;
+        for (let k = 0; k < count; k++) {
+          const a = (k / count) * Math.PI * 2 + rIdx * 0.41;
+          // Skip near cardinal stairs
+          if (Math.abs(Math.sin(a * 2)) < 0.25) continue;
+          const dx = Math.round(cx + Math.cos(a) * r);
+          const dy = Math.round(cy + Math.sin(a) * r);
+          const key = (k + rIdx) % 2 === 0 ? tuftKey : pebbleKey;
+          const decal = createPixelImage(this, dx, dy, key, 2);
+          if (decal) {
+            decal.setAlpha(0.75);
+            decal.setDepth(0);
+            this.gardenDecals.push(decal);
+          }
+        }
       }
     }
     g.lineStyle(3, PALETTE.stoneDark, 0.75);
@@ -697,6 +726,7 @@ export class GardenScene extends Phaser.Scene {
     }
     if (this.movableHandles) { for (const h of this.movableHandles) h.destroy(); this.movableHandles = []; }
     if (this.obeliskHandles) { for (const h of this.obeliskHandles) h.destroy(); this.obeliskHandles = []; }
+    if (this.gardenDecals) { for (const d of this.gardenDecals) d.destroy(); this.gardenDecals = []; }
     if (this.gardenGraphics) { this.gardenGraphics.destroy(); this.gardenGraphics = null; }
     if (this.dayNightOverlay) { this.dayNightOverlay.destroy(); this.dayNightOverlay = null; }
   }

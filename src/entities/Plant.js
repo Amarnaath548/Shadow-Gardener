@@ -1,4 +1,5 @@
 import { PALETTE, BALANCE } from '../constants/Palette.js';
+import { ensureSprite, createPixelImage } from '../systems/PixelArt.js';
 
 /**
  * Base class for garden plants.
@@ -21,12 +22,61 @@ export class Plant {
     this.movable = false;
     this.id = null;
 
-    // Graphics containers
+    // Graphics & pixel-art sprite containers
     this.plantGraphics = scene.add.graphics();
+    if (this.plantGraphics.setDepth) this.plantGraphics.setDepth(1);
     this.hudGraphics = scene.add.graphics();
+    if (this.hudGraphics.setDepth) this.hudGraphics.setDepth(4);
+    this.potSprite = null;
+    this.sprite = null;
+    this.waterSprite = null;
+    this.hudBadgeSprite = null;
 
     // Pulse animation timer
     this.animTime = Math.random() * 10;
+  }
+
+  /**
+   * Ensures a pixel-art sprite exists for this plant and updates its texture/position.
+   */
+  syncPixelSprite(spriteName, offsetY = -10, scale = 2.1) {
+    const texKey = ensureSprite(this.scene, spriteName);
+    if (!texKey) return;
+
+    if (this.movable) {
+      if (!this.potSprite) {
+        const potKey = ensureSprite(this.scene, 'plant_pot');
+        this.potSprite = createPixelImage(this.scene, this.x, this.y + 8, potKey, 2);
+        if (this.potSprite) this.potSprite.setDepth(2);
+      } else {
+        this.potSprite.setPosition(Math.round(this.x), Math.round(this.y + 8));
+      }
+    }
+
+    if (!this.sprite) {
+      this.sprite = createPixelImage(this.scene, this.x, this.y + offsetY, texKey, scale);
+      if (this.sprite) this.sprite.setDepth(3);
+    } else {
+      if (this.sprite.texture && this.sprite.texture.key !== texKey) {
+        this.sprite.setTexture(texKey);
+      }
+      this.sprite.setPosition(Math.round(this.x), Math.round(this.y + offsetY));
+      this.sprite.setScale(scale);
+    }
+
+    if (this.isWatered()) {
+      const dropKey = ensureSprite(this.scene, 'water_drop');
+      const bob = Math.round(Math.sin(this.animTime * 2) * 2);
+      if (!this.waterSprite && dropKey) {
+        this.waterSprite = createPixelImage(this.scene, this.x + 18, this.y - 24 + bob, dropKey, 1.5);
+        if (this.waterSprite) this.waterSprite.setDepth(4);
+      } else if (this.waterSprite) {
+        this.waterSprite.setVisible(true);
+        this.waterSprite.setPosition(Math.round(this.x + 18), Math.round(this.y - 24 + bob));
+      }
+    } else if (this.waterSprite) {
+      this.waterSprite.setVisible(false);
+    }
   }
 
   update(deltaSeconds, isShaded) {
@@ -59,69 +109,60 @@ export class Plant {
     const g = this.hudGraphics;
     g.clear();
 
-    const mx = this.x;
-    const my = this.y - 48; // Floating directly above plant
+    const mx = Math.round(this.x);
+    const my = Math.round(this.y - 48); // Floating directly above plant
 
-    // 1. Exposure Badge (Circle with Sun/Moon icon, matching concept art)
-    const badgeR = 12;
+    // 1. Pixel-art Exposure Badge (square pixel frame with Sun/Moon sprite)
     g.fillStyle(PALETTE.hudCard, 0.95);
-    g.fillCircle(mx - 22, my, badgeR);
-    g.lineStyle(1.5, PALETTE.brassMid, 0.9);
-    g.strokeCircle(mx - 22, my, badgeR);
+    g.fillRect(mx - 32, my - 10, 20, 20);
+    g.lineStyle(2, PALETTE.brassMid, 0.95);
+    g.strokeRect(mx - 32, my - 10, 20, 20);
 
-    if (this.isShaded) {
-      // Shaded Moon icon
-      g.fillStyle(PALETTE.gaugeMoon, 1.0);
-      g.beginPath();
-      g.arc(mx - 22, my, 7, -Math.PI / 2, Math.PI / 2, false);
-      g.arc(mx - 25, my, 5, Math.PI / 2, -Math.PI / 2, true);
-      g.closePath();
-      g.fillPath();
-    } else {
-      // Sunlit Sun icon
-      g.fillStyle(PALETTE.gaugeSun, 1.0);
-      g.fillCircle(mx - 22, my, 6);
-      g.lineStyle(1.2, PALETTE.sunRays, 1.0);
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        g.lineBetween(
-          mx - 22 + Math.cos(a) * 7, my + Math.sin(a) * 7,
-          mx - 22 + Math.cos(a) * 10, my + Math.sin(a) * 10
-        );
+    const badgeName = this.isShaded ? 'moon_badge' : 'sun_badge';
+    const badgeKey = ensureSprite(this.scene, badgeName);
+    if (badgeKey) {
+      if (!this.hudBadgeSprite) {
+        this.hudBadgeSprite = createPixelImage(this.scene, mx - 22, my, badgeKey, 1.5);
+        if (this.hudBadgeSprite) this.hudBadgeSprite.setDepth(4);
+      } else {
+        if (this.hudBadgeSprite.texture && this.hudBadgeSprite.texture.key !== badgeKey) {
+          this.hudBadgeSprite.setTexture(badgeKey);
+        }
+        this.hudBadgeSprite.setPosition(mx - 22, my);
       }
     }
 
-    // 2. Dual Horizontal Mini-Bars (Bloom Charge & Scorch Stress)
+    // 2. Dual Horizontal Pixel Mini-Bars (Bloom Charge & Scorch Stress)
     const barW = 46;
-    const barH = 5;
+    const barH = 6;
     const barX = mx - 6;
 
     // --- Bloom Charge Bar ---
-    g.fillStyle(PALETTE.barBg, 0.85);
-    g.fillRect(barX, my - 5, barW, barH);
-    g.lineStyle(1, PALETTE.stoneDark, 0.6);
-    g.strokeRect(barX, my - 5, barW, barH);
+    g.fillStyle(PALETTE.barBg, 0.9);
+    g.fillRect(barX, my - 6, barW, barH);
+    g.lineStyle(1.5, PALETTE.stoneDark, 0.85);
+    g.strokeRect(barX, my - 6, barW, barH);
 
-    const bloomW = Math.max(0, Math.min(barW, barW * this.bloomCharge));
+    const bloomW = Math.max(0, Math.min(barW - 2, Math.round((barW - 2) * this.bloomCharge)));
     const bloomCol = this.isBloomed ? PALETTE.brassHighlight : PALETTE.barBloom;
     g.fillStyle(bloomCol, 1.0);
-    g.fillRect(barX + 0.5, my - 4.5, bloomW, barH - 1);
+    if (bloomW > 0) g.fillRect(barX + 1, my - 5, bloomW, barH - 2);
 
     // --- Scorch Stress Bar (if applicable or shade feeder) ---
     if (this.type === 'shade_feeder') {
-      g.fillStyle(PALETTE.barBg, 0.85);
+      g.fillStyle(PALETTE.barBg, 0.9);
       g.fillRect(barX, my + 3, barW, barH);
       g.strokeRect(barX, my + 3, barW, barH);
 
-      const stressW = Math.max(0, Math.min(barW, barW * this.scorchStress));
+      const stressW = Math.max(0, Math.min(barW - 2, Math.round((barW - 2) * this.scorchStress)));
       if (stressW > 0) {
         g.fillStyle(PALETTE.barStress, 1.0);
-        g.fillRect(barX + 0.5, my + 3.5, stressW, barH - 1);
+        g.fillRect(barX + 1, my + 4, stressW, barH - 2);
       }
     } else {
       // For sun-lover, display comfort notch
       g.fillStyle(PALETTE.stoneMid, 0.8);
-      g.fillRect(barX, my + 3, barW, 2);
+      g.fillRect(barX, my + 4, barW, 2);
     }
   }
 
@@ -135,6 +176,10 @@ export class Plant {
   }
 
   destroy() {
+    if (this.sprite) { this.sprite.destroy(); this.sprite = null; }
+    if (this.potSprite) { this.potSprite.destroy(); this.potSprite = null; }
+    if (this.waterSprite) { this.waterSprite.destroy(); this.waterSprite = null; }
+    if (this.hudBadgeSprite) { this.hudBadgeSprite.destroy(); this.hudBadgeSprite = null; }
     if (this.plantGraphics) {
       this.plantGraphics.destroy();
       this.plantGraphics = null;
@@ -178,58 +223,21 @@ export class SolarisLily extends Plant {
     const g = this.plantGraphics;
     g.clear();
 
-    const x = this.x;
-    const y = this.y;
+    const x = Math.round(this.x);
+    const y = Math.round(this.y);
 
-    // Ambient ground shadow under plant
-    g.fillStyle(0x181512, 0.35);
-    g.fillEllipse(x, y + 8, 28, 14);
-
-    // Green stem
-    g.lineStyle(3, PALETTE.lilyStem, 1.0);
-    g.beginPath();
-    g.moveTo(x, y + 6);
-    g.lineTo(x, y - 10);
-    g.strokePath();
-
-    // Stem leaves
-    g.fillStyle(PALETTE.lilyStem, 1.0);
-    g.fillEllipse(x - 8, y - 2, 10, 5);
-    g.fillEllipse(x + 8, y - 4, 10, 5);
-
-    // Opening animation factor (more open in sunlight / bloom)
-    const openFactor = this.isShaded ? 0.55 : 0.85 + (this.bloomCharge * 0.35);
-    const pulse = Math.sin(this.animTime) * 1.5;
-
-    // Glowing aura if fully bloomed
+    // Pixelated glowing aura if fully bloomed
     if (this.isBloomed) {
-      g.fillStyle(PALETTE.lilyCenterGlow, 0.25 + Math.sin(this.animTime * 2) * 0.1);
-      g.fillCircle(x, y - 16, 24 + pulse);
+      const pulse = Math.round(Math.sin(this.animTime * 2) * 3);
+      g.fillStyle(PALETTE.lilyCenterGlow, 0.22);
+      g.fillRect(x - 22 - pulse, y - 34 - pulse, 44 + pulse * 2, 44 + pulse * 2);
     }
 
-    // 5 Petals clustered in golden gouache
-    const numPetals = 5;
-    const petalLen = (14 + this.bloomCharge * 6) * openFactor;
-    const petalCol = this.isShaded ? PALETTE.lilyPetal : PALETTE.lilyPetalLight;
-
-    for (let i = 0; i < numPetals; i++) {
-      const a = (i / numPetals) * Math.PI * 2 - Math.PI / 2;
-      const px = x + Math.cos(a) * (petalLen * 0.6);
-      const py = y - 16 + Math.sin(a) * (petalLen * 0.6);
-
-      g.fillStyle(petalCol, 1.0);
-      g.fillEllipse(px, py, 11, petalLen);
-
-      g.lineStyle(1, PALETTE.lilyCenter, 0.7);
-      g.strokeEllipse(px, py, 11, petalLen);
-    }
-
-    // Flower Center Stamen
-    g.fillStyle(PALETTE.lilyCenter, 1.0);
-    g.fillCircle(x, y - 16, 5);
-
-    g.fillStyle(PALETTE.lilyCenterGlow, 1.0);
-    g.fillCircle(x, y - 16, 2.5);
+    const spriteName = this.isBloomed
+      ? 'lily_bloomed'
+      : (this.isShaded ? 'lily_shaded' : 'lily_sunlit');
+    const scale = 2.0 + (this.bloomCharge * 0.25);
+    this.syncPixelSprite(spriteName, -10, scale);
   }
 }
 
@@ -271,65 +279,28 @@ export class GhostFern extends Plant {
     const g = this.plantGraphics;
     g.clear();
 
-    const x = this.x;
-    const y = this.y;
-
-    // Ambient ground shadow under fern
-    g.fillStyle(0x181512, 0.4);
-    g.fillEllipse(x, y + 8, 32, 16);
+    const x = Math.round(this.x);
+    const y = Math.round(this.y);
 
     const isScorched = this.scorchStress > 0.65;
-    const pulse = Math.sin(this.animTime * 1.8) * 2;
+    const pulse = Math.round(Math.sin(this.animTime * 1.8) * 2);
 
-    // Bioluminescent glow aura in shade
+    // Pixelated bioluminescent glow aura or heat warning
     if (this.isShaded && this.scorchStress < 0.3) {
-      const glowR = 26 + (this.bloomCharge * 10) + pulse;
-      g.fillStyle(PALETTE.fernFrondGlow, 0.18 + (this.bloomCharge * 0.12));
-      g.fillCircle(x, y - 8, glowR);
+      const r = 22 + Math.round(this.bloomCharge * 6) + pulse;
+      g.fillStyle(PALETTE.fernFrondGlow, 0.16 + (this.bloomCharge * 0.1));
+      g.fillRect(x - r, y - 12 - r, r * 2, r * 2);
     } else if (this.scorchStress > 0.4) {
-      // Heat warning aura
-      g.fillStyle(PALETTE.barStress, 0.15 + (this.scorchStress * 0.15));
-      g.fillCircle(x, y - 8, 20 + pulse);
+      const r = 18 + pulse;
+      g.fillStyle(PALETTE.barStress, 0.18 + (this.scorchStress * 0.12));
+      g.fillRect(x - r, y - 12 - r, r * 2, r * 2);
     }
 
-    // Color blending between bioluminescent cyan and scorched red-brown
-    const frondColor = isScorched ? PALETTE.fernScorched : (this.isShaded ? PALETTE.fernFrondGlow : PALETTE.fernFrond);
-    const stemColor = isScorched ? PALETTE.fernScorchedStem : PALETTE.fernDeep;
-
-    // Draw central arching stems
-    g.lineStyle(2, stemColor, 0.95);
-
-    // 5 Arching Fronds
-    const frondAngles = [-0.65, -0.32, 0.0, 0.32, 0.65];
-    const curl = isScorched ? 0.6 : 1.0; // curls up when scorched
-
-    for (let i = 0; i < frondAngles.length; i++) {
-      const a = frondAngles[i] - Math.PI / 2;
-      const fLen = (20 + (i === 2 ? 6 : 0)) * curl;
-
-      const tipX = x + Math.cos(a) * fLen;
-      const tipY = y + Math.sin(a) * fLen;
-
-      g.lineBetween(x, y, tipX, tipY);
-
-      // Procedural side leaflets along each frond
-      const numLeaflets = 4;
-      g.fillStyle(frondColor, isScorched ? 0.8 : 0.95);
-
-      for (let j = 1; j <= numLeaflets; j++) {
-        const t = j / numLeaflets;
-        const lx = x + (tipX - x) * t;
-        const ly = y + (tipY - y) * t;
-
-        const leafSize = (4.5 - t * 1.5) * curl;
-        g.fillEllipse(lx - 3, ly, leafSize * 1.8, leafSize);
-        g.fillEllipse(lx + 3, ly, leafSize * 1.8, leafSize);
-      }
-
-      // Frond tip bud
-      g.fillStyle(this.isShaded ? PALETTE.fernFrondLight : frondColor, 1.0);
-      g.fillCircle(tipX, tipY, isScorched ? 2 : 3);
-    }
+    const spriteName = isScorched
+      ? 'fern_scorched'
+      : (this.isBloomed ? 'fern_bloomed' : (this.isShaded ? 'fern_shaded' : 'fern_sunlit'));
+    const scale = 2.0 + (this.bloomCharge * 0.2);
+    this.syncPixelSprite(spriteName, -10, scale);
   }
 }
 
@@ -378,28 +349,16 @@ export class DappledOrchid extends Plant {
   drawPlant() {
     const g = this.plantGraphics;
     g.clear();
-    const x = this.x, y = this.y;
-    g.fillStyle(0x181512, 0.35);
-    g.fillEllipse(x, y + 8, 30, 14);
-    // stem
-    g.lineStyle(2, 0x5A7A4A, 1);
-    g.lineBetween(x, y + 6, x, y - 12);
-    // petals alternating colors
-    const open = 0.7 + this.bloomCharge * 0.3;
-    const cols = [0xC77DFF, 0xE0AAFF, 0x9D4EDD];
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
-      const px = x + Math.cos(a) * 10 * open;
-      const py = y - 14 + Math.sin(a) * 10 * open;
-      g.fillStyle(cols[i % cols.length], 0.9);
-      g.fillEllipse(px, py, 8, 12);
-    }
-    g.fillStyle(0xFFD6A5, 1);
-    g.fillCircle(x, y - 14, 4);
+    const x = Math.round(this.x);
+    const y = Math.round(this.y);
     if (this.isBloomed) {
-      g.fillStyle(0xFFFFFF, 0.25 + Math.sin(this.animTime * 2) * 0.1);
-      g.fillCircle(x, y - 14, 18);
+      const pulse = Math.round(Math.sin(this.animTime * 2) * 2);
+      g.fillStyle(0xE0AAFF, 0.22);
+      g.fillRect(x - 20 - pulse, y - 32 - pulse, 40 + pulse * 2, 40 + pulse * 2);
     }
+    const spriteName = (this.isBloomed || this.bloomCharge >= 0.5) ? 'orchid_bloomed' : 'orchid_bud';
+    const scale = 2.0 + this.bloomCharge * 0.2;
+    this.syncPixelSprite(spriteName, -10, scale);
   }
 }
 
@@ -439,19 +398,18 @@ export class VelvetPuffball extends Plant {
   drawPlant() {
     const g = this.plantGraphics;
     g.clear();
-    const x = this.x, y = this.y;
-    g.fillStyle(0x181512, 0.3);
-    g.fillEllipse(x, y + 6, 34, 16);
-    const col = this.scorchStress > 0.6 ? 0x8B5A3C : 0x7B5EA7;
-    const r = 16 + this.bloomCharge * 6;
-    g.fillStyle(col, 0.95);
-    g.fillCircle(x, y - 8, r);
-    g.fillStyle(0xB39DDB, 0.6);
-    g.fillCircle(x - 4, y - 12, r * 0.5);
+    const x = Math.round(this.x);
+    const y = Math.round(this.y);
+    const isScorched = this.scorchStress > 0.6;
     if (this.isShaded && this.scorchStress < 0.3) {
-      g.fillStyle(0xCE93D8, 0.15);
-      g.fillCircle(x, y - 8, r + 8);
+      g.fillStyle(0xCE93D8, 0.16);
+      g.fillRect(x - 20, y - 28, 40, 36);
     }
+    const spriteName = isScorched
+      ? 'puffball_scorched'
+      : (this.isBloomed ? 'puffball_bloomed' : 'puffball_shaded');
+    const scale = 2.0 + this.bloomCharge * 0.3;
+    this.syncPixelSprite(spriteName, -8, scale);
   }
 }
 
@@ -483,19 +441,13 @@ export class HelioCactus extends Plant {
   drawPlant() {
     const g = this.plantGraphics;
     g.clear();
-    const x = this.x, y = this.y;
-    g.fillStyle(0x181512, 0.3);
-    g.fillEllipse(x, y + 8, 24, 12);
-    g.fillStyle(0x2E7D32, 1);
-    g.fillRoundedRect(x - 6, y - 28, 12, 34, 4);
-    // arms
-    g.fillRoundedRect(x - 14, y - 20, 8, 14, 3);
-    g.fillRoundedRect(x + 6, y - 24, 8, 16, 3);
-    g.fillStyle(0x81C784, 0.8);
-    g.fillCircle(x, y - 30, 4);
+    const x = Math.round(this.x);
+    const y = Math.round(this.y);
     if (this.isBloomed) {
-      g.fillStyle(0xFFEB3B, 0.3);
-      g.fillCircle(x, y - 18, 18);
+      g.fillStyle(0xFFEB3B, 0.22);
+      g.fillRect(x - 18, y - 34, 36, 40);
     }
+    const spriteName = this.isBloomed ? 'cactus_bloomed' : 'cactus_growing';
+    this.syncPixelSprite(spriteName, -12, 2.1);
   }
 }
